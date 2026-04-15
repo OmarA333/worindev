@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
+import path from 'path'
 
 import authRoutes         from './modules/auth/auth.routes'
 import candidatoRoutes    from './modules/candidatos/candidato.routes'
@@ -24,6 +25,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }))
 app.use(express.json({ limit: '5mb' }))
+
+// ─── ARCHIVOS ESTÁTICOS ───────────────────────────────────────────────────────
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 // ─── RATE LIMITING ────────────────────────────────────────────────────────────
 const authLimiter = rateLimit({

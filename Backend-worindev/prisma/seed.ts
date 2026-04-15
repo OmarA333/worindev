@@ -121,21 +121,69 @@ async function main() {
 
   // ─── TESTS ────────────────────────────────────────────────────────────────
   const tests = [
-    { nombre: 'Habilidades Técnicas', tipo: 'HARD_SKILL' as const,  duracion: 30, peso: 0.40, descripcion: 'Evalúa conocimientos técnicos, certificaciones y experiencia.' },
-    { nombre: 'Psicometría',          tipo: 'PSICOMETRIA' as const,  duracion: 20, peso: 0.10, descripcion: 'Mide personalidad y habilidades blandas.' },
-    { nombre: 'Soft Skills',          tipo: 'SOFT_SKILL' as const,   duracion: 15, peso: 0.10, descripcion: 'Evalúa trabajo en equipo, comunicación y liderazgo.' },
-    { nombre: 'Logística Personal',   tipo: 'LOGISTICA' as const,    duracion: 10, peso: 0.20, descripcion: 'Confirma ubicación, disponibilidad y pretensión salarial.' },
+    { nombre: 'Habilidades Técnicas', tipo: 'HARD_SKILL' as const,  duracion: 30, peso: 0.40, descripcion: 'Evalúa conocimientos técnicos, certificaciones y experiencia.', activo: true },
+    { nombre: 'Psicometría',          tipo: 'PSICOMETRIA' as const,  duracion: 20, peso: 0.10, descripcion: 'Mide personalidad y habilidades blandas.', activo: true },
+    { nombre: 'Soft Skills',          tipo: 'SOFT_SKILL' as const,   duracion: 15, peso: 0.10, descripcion: 'Evalúa trabajo en equipo, comunicación y liderazgo.', activo: true },
+    { nombre: 'Logística Personal',   tipo: 'LOGISTICA' as const,    duracion: 10, peso: 0.20, descripcion: 'Confirma ubicación, disponibilidad y pretensión salarial.', activo: true },
   ]
 
   for (const t of tests) {
-    await prisma.test.upsert({
+    const test = await prisma.test.upsert({
       where:  { nombre: t.nombre },
       update: {},
       create: t,
     })
+
+    // Agregar preguntas según el tipo de test
+    if (t.tipo === 'HARD_SKILL') {
+      const preguntas = [
+        { texto: '¿Cuál es la diferencia entre let y const en JavaScript?', tipo: 'OPCION_MULTIPLE' as const, opciones: ['let es mutable, const es inmutable', 'Son iguales', 'const es mutable, let es inmutable', 'No hay diferencia en ES6'], orden: 0 },
+        { texto: '¿Qué es React?', tipo: 'OPCION_MULTIPLE' as const, opciones: ['Una librería de JavaScript para UI', 'Un framework backend', 'Una base de datos', 'Un lenguaje de programación'], orden: 1 },
+        { texto: '¿Cuántos años de experiencia tienes con React?', tipo: 'ESCALA' as const, opciones: null, orden: 2 },
+      ]
+      for (const p of preguntas) {
+        const exists = await prisma.pregunta.findFirst({ where: { testId: test.id, orden: p.orden } })
+        if (!exists) {
+          await prisma.pregunta.create({ data: { testId: test.id, texto: p.texto, tipo: p.tipo, opciones: p.opciones, orden: p.orden } })
+        }
+      }
+    } else if (t.tipo === 'PSICOMETRIA') {
+      const preguntas = [
+        { texto: 'Prefieres trabajar solo o en equipo', tipo: 'ESCALA' as const, opciones: null, orden: 0 },
+        { texto: 'Cómo manejas el estrés en situaciones difíciles', tipo: 'ABIERTA' as const, opciones: null, orden: 1 },
+      ]
+      for (const p of preguntas) {
+        const exists = await prisma.pregunta.findFirst({ where: { testId: test.id, orden: p.orden } })
+        if (!exists) {
+          await prisma.pregunta.create({ data: { testId: test.id, texto: p.texto, tipo: p.tipo, opciones: p.opciones, orden: p.orden } })
+        }
+      }
+    } else if (t.tipo === 'SOFT_SKILL') {
+      const preguntas = [
+        { texto: 'Describe una situación donde lideraste un proyecto', tipo: 'ABIERTA' as const, opciones: null, orden: 0 },
+        { texto: 'Cómo comunicas malas noticias a tu equipo', tipo: 'OPCION_MULTIPLE' as const, opciones: ['Directamente y con claridad', 'Evito el tema', 'Dejo que otros lo hagan', 'Espero el momento adecuado'], orden: 1 },
+      ]
+      for (const p of preguntas) {
+        const exists = await prisma.pregunta.findFirst({ where: { testId: test.id, orden: p.orden } })
+        if (!exists) {
+          await prisma.pregunta.create({ data: { testId: test.id, texto: p.texto, tipo: p.tipo, opciones: p.opciones, orden: p.orden } })
+        }
+      }
+    } else if (t.tipo === 'LOGISTICA') {
+      const preguntas = [
+        { texto: 'Confirma tu disponibilidad para empezar', tipo: 'OPCION_MULTIPLE' as const, opciones: ['Inmediata', '15 días', '1 mes', 'Más de 1 mes'], orden: 0 },
+        { texto: 'Prefieres trabajar en modalidad', tipo: 'OPCION_MULTIPLE' as const, opciones: ['Presencial', 'Remoto', 'Híbrido'], orden: 1 },
+      ]
+      for (const p of preguntas) {
+        const exists = await prisma.pregunta.findFirst({ where: { testId: test.id, orden: p.orden } })
+        if (!exists) {
+          await prisma.pregunta.create({ data: { testId: test.id, texto: p.texto, tipo: p.tipo, opciones: p.opciones, orden: p.orden } })
+        }
+      }
+    }
   }
 
-  console.log('✅ Tests creados')
+  console.log('✅ Tests y preguntas creados')
 
   // ─── VACANTES ─────────────────────────────────────────────────────────────
   const vacante1 = await prisma.vacante.create({

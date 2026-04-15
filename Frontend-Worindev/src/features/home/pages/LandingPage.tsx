@@ -65,10 +65,6 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
               className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold text-white bg-gradient-to-r from-primary-500 to-accent-500 hover:opacity-90 transition-all shadow-lg shadow-primary-500/20 text-lg">
               Comenzar gratis <ArrowRight size={20} />
             </button>
-            <button onClick={() => onNavigate('/login')}
-              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold text-slate-300 glass border border-white/10 hover:border-white/20 transition-all text-lg">
-              Ver demo
-            </button>
           </div>
 
           {/* Match score visual */}
@@ -84,7 +80,7 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold text-accent-500">93%</p>
-                  <p className="text-xs text-slate-500">Match</p>
+                  <p className="text-xs text-slate-500">Compatibilidad</p>
                 </div>
               </div>
               <div className="w-full bg-dark-700 rounded-full h-2">
@@ -124,8 +120,8 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
 
           <div className="grid md:grid-cols-2 gap-6 mb-12">
             {[
-              { pct: '40%', label: 'Hard Skills', desc: 'Títulos, certificaciones y años de experiencia técnica verificados', color: 'from-primary-500 to-primary-700', icon: '🎓' },
-              { pct: '20%', label: 'Soft Skills & Psicometría', desc: 'Tests de personalidad integrados que evalúan habilidades blandas reales', color: 'from-accent-500 to-accent-700', icon: '🧠' },
+              { pct: '40%', label: 'Habilidades Técnicas', desc: 'Títulos, certificaciones y años de experiencia técnica verificados', color: 'from-primary-500 to-primary-700', icon: '🎓' },
+              { pct: '20%', label: 'Habilidades Blandas y Psicometría', desc: 'Tests de personalidad integrados que evalúan habilidades blandas reales', color: 'from-accent-500 to-accent-700', icon: '🧠' },
               { pct: '20%', label: 'Logística', desc: 'Geolocalización en Colombia, disponibilidad horaria y pretensión salarial', color: 'from-cyan-500 to-blue-600', icon: '📍' },
               { pct: '13%', label: 'Referencias', desc: 'Validación automática de referencias laborales mediante correos de verificación', color: 'from-purple-500 to-pink-600', icon: '✅' },
             ].map(d => (
@@ -204,7 +200,7 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
           ) : (
             <div className="grid md:grid-cols-3 gap-5">
               {[
-                { icon: '💳', title: 'SaaS o por vacante', desc: 'Suscripción mensual o pago por contratación exitosa. Tú eliges.' },
+                { icon: '💳', title: 'Suscripción o por vacante', desc: 'Suscripción mensual o pago por contratación exitosa. Tú eliges.' },
                 { icon: '🎛️', title: 'Panel de control', desc: 'Gestiona vacantes, define parámetros y administra entrevistas grupales.' },
                 { icon: '⚙️', title: 'Parámetros personalizados', desc: 'Define habilidades críticas vs. deseables para cada posición.' },
                 { icon: '🤖', title: 'Filtrado automático', desc: 'El algoritmo filtra candidatos bajo criterios técnicos objetivos.' },
@@ -238,10 +234,6 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
                 <button onClick={() => onNavigate('/register')}
                   className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold text-white bg-gradient-to-r from-primary-500 to-accent-500 hover:opacity-90 transition-all">
                   Crear cuenta gratis <ArrowRight size={18} />
-                </button>
-                <button onClick={() => onNavigate('/login')}
-                  className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl font-semibold text-slate-300 glass border border-white/10 hover:border-white/20 transition-all">
-                  Ya tengo cuenta
                 </button>
               </div>
             </div>

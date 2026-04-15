@@ -34,6 +34,7 @@ export default {
         accent: {
           50:  '#f0fdf4',
           100: '#dcfce7',
+          200: '#bbf7d0',
           400: '#4ade80',
           500: '#5aaa2a',
           600: '#16a34a',
@@ -44,6 +45,19 @@ export default {
           800: '#111827',
           700: '#1f2937',
           600: '#374151',
+        },
+        // Tema claro para sesión autenticada
+        surface: {
+          bg:      '#f0f4f8',   // fondo principal gris azulado suave
+          card:    '#ffffff',   // cards blancas
+          sidebar: '#1a2744',   // sidebar azul oscuro
+          border:  '#dde3ed',   // bordes suaves
+        },
+        ink: {
+          900: '#1a2744',   // títulos
+          700: '#374151',   // texto normal
+          500: '#6b7280',   // texto secundario
+          300: '#9ca3af',   // placeholders
         }
       },
       keyframes: {

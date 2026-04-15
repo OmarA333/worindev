@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/shared/contexts/AuthContext';
 import { LogoLight } from '@/shared/components/Logo';
-import { Eye, EyeOff, Mail, Lock, ArrowRight, Building2, User } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Building2, User, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Props { onNavigate: (path: string) => void; }
@@ -23,13 +23,16 @@ export const LoginPage: React.FC<Props> = ({ onNavigate }) => {
   };
 
   const demoAccounts = [
-    { label: 'Admin',     email: 'admin@worindev.com',     icon: '🛡️' },
-    { label: 'Empresa',   email: 'empresa@worindev.com',   icon: '🏢' },
-    { label: 'Candidato', email: 'candidato@worindev.com', icon: '👤' },
+    { label: 'Administrador', email: 'admin@worindev.com',     icon: '🛡️' },
+    { label: 'Empresa',       email: 'empresa@worindev.com',   icon: '🏢' },
+    { label: 'Candidato',     email: 'candidato@worindev.com', icon: '👤' },
   ];
 
   return (
-    <div className="min-h-screen bg-dark-900 flex">
+    <div className="min-h-screen bg-dark-900 flex relative">
+      <button onClick={() => onNavigate('/')} className="absolute top-6 right-6 flex items-center gap-1 text-white px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-all border border-white/20 hover:border-white/40 font-semibold text-xs z-50">
+        <Home size={14} /> Volver
+      </button>
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col items-center justify-center p-12">
         {/* Background gradient */}
@@ -85,7 +88,7 @@ export const LoginPage: React.FC<Props> = ({ onNavigate }) => {
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    placeholder="tu@email.com"
+                    placeholder="correo@ejemplo.com"
                     className="w-full bg-dark-700 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-600 text-sm focus:outline-none focus:border-primary-500 transition-colors"
                   />
                 </div>

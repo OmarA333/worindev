@@ -16,6 +16,11 @@ const RegistroSchema = z.object({
   rol:      z.enum(['CANDIDATO', 'EMPRESA']),
   nombre:   z.string().trim().min(2).max(100),
   apellido: z.string().trim().min(2).max(100).optional(),
+  // Candidato
+  telefono: z.string().trim().optional(),
+  ciudad: z.string().trim().optional(),
+  departamento: z.string().trim().optional(),
+  disponibilidad: z.string().trim().optional(),
   // Empresa
   nombreEmpresa: z.string().trim().min(2).max(150).optional(),
   rut:           z.string().trim().optional(),
@@ -50,7 +55,15 @@ export const registrar = async (data: unknown) => {
 
     if (d.rol === 'CANDIDATO') {
       await tx.candidato.create({
-        data: { usuarioId: u.id, nombre: d.nombre, apellido: d.apellido ?? '' }
+        data: {
+          usuarioId: u.id,
+          nombre: d.nombre,
+          apellido: d.apellido ?? '',
+          telefono: d.telefono ?? null,
+          ciudad: d.ciudad ?? null,
+          departamento: d.departamento ?? null,
+          disponibilidad: d.disponibilidad ?? null,
+        }
       })
     } else {
       await tx.empresa.create({

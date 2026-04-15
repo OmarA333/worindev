@@ -5,6 +5,32 @@ import { calcularMatchScore } from '../matching/matching.services'
 export const listarTests = async () =>
   prisma.test.findMany({ where: { activo: true }, include: { _count: { select: { preguntas: true } } }, orderBy: { tipo: 'asc' } })
 
+export const debugTests = async () => {
+  const todos = await prisma.test.findMany({ include: { _count: { select: { preguntas: true } } } })
+  const activos = await prisma.test.findMany({ where: { activo: true }, include: { _count: { select: { preguntas: true } } } })
+  return { total: todos.length, activos: activos.length, todos, activos }
+}
+
+export const crearPregunta = async (testId: number, data: any) => {
+  const { texto, tipo, opciones, orden } = data
+  if (!texto || !tipo) throw new AppError('texto y tipo son requeridos', 400)
+
+  const test = await prisma.test.findUnique({ where: { id: testId } })
+  if (!test) throw new AppError('Test no encontrado', 404)
+
+  const pregunta = await prisma.pregunta.create({
+    data: {
+      testId,
+      texto,
+      tipo: tipo ?? 'OPCION_MULTIPLE',
+      opciones: opciones ?? null,
+      orden: orden ?? 0,
+    }
+  })
+
+  return { message: 'Pregunta creada', pregunta }
+}
+
 export const obtenerTest = async (id: number) => {
   const t = await prisma.test.findUnique({ where: { id }, include: { preguntas: { orderBy: { orden: 'asc' } } } })
   if (!t) throw new AppError('Test no encontrado', 404)

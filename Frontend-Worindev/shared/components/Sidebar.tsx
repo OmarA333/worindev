@@ -44,12 +44,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate, isPan
       cats.push({
         id: 'gestion', label: 'Gestión', icon: Settings,
         items: [
-          { label: 'Empresas',    path: '/empresas',    icon: Building2 },
-          { label: 'Candidatos',  path: '/candidatos',  icon: Users },
-          { label: 'Vacantes',    path: '/vacantes',    icon: Briefcase },
-          { label: 'Entrevistas', path: '/entrevistas', icon: Calendar },
-          { label: 'Matching',    path: '/matching',    icon: Star },
-          { label: 'Reportes',    path: '/reportes',    icon: BarChart3 },
+          { label: 'Empresas',   path: '/empresas',   icon: Building2 },
+          { label: 'Candidatos', path: '/candidatos', icon: Users },
         ]
       });
     }
@@ -72,6 +68,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate, isPan
       cats.push({
         id: 'candidato', label: 'Mi Carrera', icon: Search,
         items: [
+          { label: 'Mi Currículum',    path: '/curriculo',     icon: FileText },
           { label: 'Buscar Vacantes',  path: '/vacantes',      icon: Search },
           { label: 'Mis Postulaciones',path: '/postulaciones', icon: FileText },
           { label: 'Tests',            path: '/tests',         icon: CheckCircle2 },
@@ -97,22 +94,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPath, onNavigate, isPan
   return (
     <div className="fixed left-0 top-0 h-screen flex z-50">
       {/* RAIL */}
-      <div className="w-20 bg-dark-900 border-r border-white/5 flex flex-col items-center py-5 gap-4">
-        {/* Logo icon */}
+      <div className="w-20 bg-dark-900 border-r border-white/10 flex flex-col items-center py-5 gap-4">
+        {/* Logo */}
         <div className="mb-2 cursor-pointer" onClick={() => onNavigate('/dashboard')}>
-          <svg width="36" height="30" viewBox="0 0 100 80" fill="none">
-            <ellipse cx="50" cy="30" rx="18" ry="18" fill="#00d4ff" fillOpacity="0.2" />
-            <path d="M5 5 L28 70 L50 30 L28 5 Z" fill="url(#rb)" />
-            <path d="M95 5 L72 70 L50 30 L72 5 Z" fill="url(#rg)" />
-            <defs>
-              <linearGradient id="rb" x1="5" y1="5" x2="50" y2="70" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#60a5fa" /><stop offset="100%" stopColor="#2563a8" />
-              </linearGradient>
-              <linearGradient id="rg" x1="95" y1="5" x2="50" y2="70" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#86efac" /><stop offset="100%" stopColor="#5aaa2a" />
-              </linearGradient>
-            </defs>
-          </svg>
+          <img src="/logo.png" alt="Worindev" className="w-12 h-12 object-contain" />
         </div>
 
         {/* Category buttons */}

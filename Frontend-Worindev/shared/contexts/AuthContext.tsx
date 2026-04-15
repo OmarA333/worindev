@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { User, UserRole } from '../../types';
 
+const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3003';
+
 interface AuthContextType {
   user:            User | null;
   isLoading:       boolean;
@@ -41,35 +43,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // TODO: conectar con API real
-      // Mock login para desarrollo
-      const mockUsers: Record<string, User> = {
-        'admin@worindev.com': {
-          id: '1', email, role: UserRole.ADMIN,
-          name: 'Administrador', lastName: 'Worindev', isActive: true,
-        },
-        'empresa@worindev.com': {
-          id: '2', email, role: UserRole.EMPRESA,
-          name: 'TechCorp', lastName: 'SAS', isActive: true,
-          companyName: 'TechCorp SAS', sector: 'Tecnología',
-        },
-        'candidato@worindev.com': {
-          id: '3', email, role: UserRole.CANDIDATO,
-          name: 'Juan', lastName: 'Pérez', isActive: true,
-          phone: '3001234567', city: 'Medellín',
-          skills: ['React', 'TypeScript', 'Node.js'],
-        },
+      const res = await fetch(`${API}/api/auth/login`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, password }),
+      });
+
+      if (!res.ok) return false;
+
+      const data = await res.json();
+      const { token, usuario } = data;
+
+      const rolMap: Record<string, UserRole> = {
+        ADMIN:     UserRole.ADMIN,
+        EMPRESA:   UserRole.EMPRESA,
+        CANDIDATO: UserRole.CANDIDATO,
       };
 
-      const found = mockUsers[email];
-      if (found && password.length >= 6) {
-        const token = 'mock_token_' + Date.now();
-        localStorage.setItem(SESSION_KEYS.TOKEN, token);
-        localStorage.setItem(SESSION_KEYS.USER, JSON.stringify(found));
-        setUser(found);
-        return true;
-      }
-      return false;
+      const [firstName, ...rest] = (usuario.nombre ?? '').split(' ');
+
+      const user: User = {
+        id:       String(usuario.id),
+        email:    usuario.email,
+        role:     rolMap[usuario.rol] ?? UserRole.CANDIDATO,
+        name:     firstName ?? usuario.email,
+        lastName: rest.join(' '),
+        isActive: true,
+      };
+
+      localStorage.setItem(SESSION_KEYS.TOKEN, token);
+      localStorage.setItem(SESSION_KEYS.USER,  JSON.stringify(user));
+      setUser(user);
+      return true;
     } catch {
       return false;
     } finally {

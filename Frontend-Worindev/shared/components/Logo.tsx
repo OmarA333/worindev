@@ -48,7 +48,7 @@ export const Logo: React.FC<LogoProps> = ({ size = 'md', variant = 'full', class
             worindev
           </span>
           <span className={`font-sans text-brand-gray tracking-wider ${s.sub}`} style={{ color: '#4a5568' }}>
-            work in development
+            trabajo en desarrollo
           </span>
         </div>
       )}
@@ -90,7 +90,7 @@ export const LogoLight: React.FC<LogoProps> = ({ size = 'md', variant = 'full', 
       {variant === 'full' && (
         <div className="flex flex-col leading-none">
           <span className={`font-display font-bold text-white ${s.text}`}>worindev</span>
-          <span className={`font-sans text-slate-400 tracking-wider ${s.sub}`}>work in development</span>
+          <span className={`font-sans text-slate-400 tracking-wider ${s.sub}`}>trabajo en desarrollo</span>
         </div>
       )}
     </div>

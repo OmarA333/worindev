@@ -50,6 +50,23 @@ export const obtenerCandidato = async (id: number) => {
   return c
 }
 
+export const obtenerCandidatoActual = async (user: any) => {
+  const c = await prisma.candidato.findUnique({
+    where: { usuarioId: user.id },
+    include: {
+      usuario:      { select: { email: true, estado: true, createdAt: true } },
+      habilidades:  true,
+      experiencias: { orderBy: { fechaInicio: 'desc' } },
+      educaciones:  { orderBy: { fechaInicio: 'desc' } },
+      referencias:  true,
+      testResultados: { include: { test: true } },
+      _count: { select: { postulaciones: true } },
+    }
+  })
+  if (!c) throw new AppError('Perfil de candidato no encontrado', 404)
+  return c
+}
+
 // ─── ACTUALIZAR ───────────────────────────────────────────────────────────────
 export const actualizarCandidato = async (id: number, data: any) => {
   const existe = await prisma.candidato.findUnique({ where: { id } })
@@ -90,23 +107,58 @@ export const actualizarCandidato = async (id: number, data: any) => {
   return { message: 'Perfil actualizado', candidato: actualizado }
 }
 
+export const subirCV = async (id: number, file: Express.Multer.File | undefined) => {
+  if (!file) throw new AppError('No se proporcionó archivo', 400)
+
+  const candidato = await prisma.candidato.findUnique({ where: { id } })
+  if (!candidato) throw new AppError('Candidato no encontrado', 404)
+
+  const cvUrl = `/uploads/${file.filename}`
+  const actualizado = await prisma.candidato.update({
+    where: { id },
+    data: { cvUrl }
+  })
+
+  return { message: 'CV subido exitosamente', candidato: actualizado, cvUrl }
+}
+
 // ─── HABILIDADES ──────────────────────────────────────────────────────────────
 export const agregarHabilidad = async (candidatoId: number, data: { habilidad: string; nivel?: string }) => {
   if (!data.habilidad?.trim()) throw new AppError('La habilidad es requerida', 400)
 
-  const existe = await prisma.candidatoHabilidad.findUnique({
-    where: { candidatoId_habilidad: { candidatoId, habilidad: data.habilidad.trim() } }
-  })
-  if (existe) throw new AppError('Ya tienes esa habilidad registrada', 409)
+  try {
+    const existe = await prisma.candidatoHabilidad.findUnique({
+      where: { candidatoId_habilidad: { candidatoId, habilidad: data.habilidad.trim() } }
+    })
+    if (existe) throw new AppError('Ya tienes esa habilidad registrada', 409)
 
-  const h = await prisma.candidatoHabilidad.create({
-    data: { candidatoId, habilidad: data.habilidad.trim(), nivel: data.nivel ?? 'Intermedio' }
-  })
+    const h = await prisma.candidatoHabilidad.create({
+      data: { candidatoId, habilidad: data.habilidad.trim(), nivel: data.nivel ?? 'Intermedio' }
+    })
 
-  const score = await calcularMatchScore(candidatoId)
-  await prisma.candidato.update({ where: { id: candidatoId }, data: { matchScore: score } })
+    const score = await calcularMatchScore(candidatoId)
+    await prisma.candidato.update({ where: { id: candidatoId }, data: { matchScore: score } })
 
-  return h
+    return h
+  } catch (error: any) {
+    console.error('Error al crear habilidad:', error)
+    throw new AppError(error.message || 'Error al guardar habilidad', 400)
+  }
+}
+
+export const actualizarHabilidad = async (candidatoId: number, habId: number, data: { habilidad: string; nivel?: string }) => {
+  if (!data.habilidad?.trim()) throw new AppError('La habilidad es requerida', 400)
+
+  try {
+    const h = await prisma.candidatoHabilidad.update({
+      where: { id: habId },
+      data: { habilidad: data.habilidad.trim(), nivel: data.nivel ?? 'Intermedio' }
+    })
+    return h
+  } catch (error: any) {
+    console.error('Error al actualizar habilidad:', error)
+    throw new AppError(error.message || 'Error al actualizar habilidad', 400)
+  }
 }
 
 export const eliminarHabilidad = async (candidatoId: number, habilidadId: number) => {
@@ -121,22 +173,52 @@ export const agregarExperiencia = async (candidatoId: number, data: any) => {
   if (!data.empresa || !data.cargo || !data.fechaInicio)
     throw new AppError('Empresa, cargo y fecha de inicio son requeridos', 400)
 
-  const exp = await prisma.experiencia.create({
-    data: {
-      candidatoId,
-      empresa:     data.empresa,
-      cargo:       data.cargo,
-      descripcion: data.descripcion ?? null,
-      fechaInicio: new Date(data.fechaInicio),
-      fechaFin:    data.fechaFin ? new Date(data.fechaFin) : null,
-      actual:      data.actual ?? false,
-    }
-  })
+  try {
+    const exp = await prisma.experiencia.create({
+      data: {
+        candidatoId,
+        empresa:     data.empresa.trim(),
+        cargo:       data.cargo.trim(),
+        descripcion: data.descripcion?.trim() ?? null,
+        fechaInicio: new Date(data.fechaInicio),
+        fechaFin:    data.fechaFin ? new Date(data.fechaFin) : null,
+        actual:      data.actual ?? false,
+        archivoUrl:  data.archivoUrl ?? null,
+      }
+    })
 
-  const score = await calcularMatchScore(candidatoId)
-  await prisma.candidato.update({ where: { id: candidatoId }, data: { matchScore: score } })
+    const score = await calcularMatchScore(candidatoId)
+    await prisma.candidato.update({ where: { id: candidatoId }, data: { matchScore: score } })
 
-  return exp
+    return exp
+  } catch (error: any) {
+    console.error('Error al crear experiencia:', error)
+    throw new AppError(error.message || 'Error al guardar experiencia', 400)
+  }
+}
+
+export const actualizarExperiencia = async (candidatoId: number, expId: number, data: any) => {
+  if (!data.empresa || !data.cargo || !data.fechaInicio)
+    throw new AppError('Empresa, cargo y fecha de inicio son requeridos', 400)
+
+  try {
+    const exp = await prisma.experiencia.update({
+      where: { id: expId },
+      data: {
+        empresa:     data.empresa.trim(),
+        cargo:       data.cargo.trim(),
+        descripcion: data.descripcion?.trim() ?? null,
+        fechaInicio: new Date(data.fechaInicio),
+        fechaFin:    data.fechaFin ? new Date(data.fechaFin) : null,
+        actual:      data.actual ?? false,
+        archivoUrl:  data.archivoUrl ?? null,
+      }
+    })
+    return exp
+  } catch (error: any) {
+    console.error('Error al actualizar experiencia:', error)
+    throw new AppError(error.message || 'Error al actualizar experiencia', 400)
+  }
 }
 
 export const eliminarExperiencia = async (candidatoId: number, expId: number) => {
@@ -151,22 +233,60 @@ export const agregarEducacion = async (candidatoId: number, data: any) => {
   if (!data.institucion || !data.titulo || !data.nivel || !data.fechaInicio)
     throw new AppError('Institución, título, nivel y fecha de inicio son requeridos', 400)
 
-  const edu = await prisma.educacion.create({
-    data: {
-      candidatoId,
-      institucion: data.institucion,
-      titulo:      data.titulo,
-      nivel:       data.nivel,
-      fechaInicio: new Date(data.fechaInicio),
-      fechaFin:    data.fechaFin ? new Date(data.fechaFin) : null,
-      actual:      data.actual ?? false,
-    }
-  })
+  const nivelesValidos = ['BACHILLER', 'TECNICO', 'TECNOLOGO', 'PROFESIONAL', 'ESPECIALIZACION', 'MAESTRIA', 'DOCTORADO']
+  if (!nivelesValidos.includes(data.nivel))
+    throw new AppError(`Nivel de educación inválido. Debe ser uno de: ${nivelesValidos.join(', ')}`, 400)
 
-  const score = await calcularMatchScore(candidatoId)
-  await prisma.candidato.update({ where: { id: candidatoId }, data: { matchScore: score } })
+  try {
+    const edu = await prisma.educacion.create({
+      data: {
+        candidatoId,
+        institucion: data.institucion.trim(),
+        titulo:      data.titulo.trim(),
+        nivel:       data.nivel as any,
+        fechaInicio: new Date(data.fechaInicio),
+        fechaFin:    data.fechaFin ? new Date(data.fechaFin) : null,
+        actual:      data.actual ?? false,
+        archivoUrl:  data.archivoUrl ?? null,
+      }
+    })
 
-  return edu
+    const score = await calcularMatchScore(candidatoId)
+    await prisma.candidato.update({ where: { id: candidatoId }, data: { matchScore: score } })
+
+    return edu
+  } catch (error: any) {
+    console.error('Error al crear educación:', error)
+    throw new AppError(error.message || 'Error al guardar educación', 400)
+  }
+}
+
+export const actualizarEducacion = async (candidatoId: number, eduId: number, data: any) => {
+  if (!data.institucion || !data.titulo || !data.nivel || !data.fechaInicio)
+    throw new AppError('Institución, título, nivel y fecha de inicio son requeridos', 400)
+
+  const nivelesValidos = ['BACHILLER', 'TECNICO', 'TECNOLOGO', 'PROFESIONAL', 'ESPECIALIZACION', 'MAESTRIA', 'DOCTORADO']
+  if (!nivelesValidos.includes(data.nivel))
+    throw new AppError(`Nivel de educación inválido. Debe ser uno de: ${nivelesValidos.join(', ')}`, 400)
+
+  try {
+    const edu = await prisma.educacion.update({
+      where: { id: eduId },
+      data: {
+        institucion: data.institucion.trim(),
+        titulo:      data.titulo.trim(),
+        nivel:       data.nivel as any,
+        fechaInicio: new Date(data.fechaInicio),
+        fechaFin:    data.fechaFin ? new Date(data.fechaFin) : null,
+        actual:      data.actual ?? false,
+        archivoUrl:  data.archivoUrl ?? null,
+      }
+    })
+    return edu
+  } catch (error: any) {
+    console.error('Error al actualizar educación:', error)
+    throw new AppError(error.message || 'Error al actualizar educación', 400)
+  }
 }
 
 export const eliminarEducacion = async (candidatoId: number, eduId: number) => {
@@ -181,32 +301,68 @@ export const agregarReferencia = async (candidatoId: number, data: any) => {
   if (!data.nombre || !data.cargo || !data.empresa || !data.email)
     throw new AppError('Nombre, cargo, empresa y email son requeridos', 400)
 
-  const ref = await prisma.referencia.create({
-    data: {
-      candidatoId,
-      nombre:   data.nombre,
-      cargo:    data.cargo,
-      empresa:  data.empresa,
-      email:    data.email,
-      telefono: data.telefono ?? null,
-    }
-  })
+  try {
+    const ref = await prisma.referencia.create({
+      data: {
+        candidatoId,
+        nombre:   data.nombre.trim(),
+        cargo:    data.cargo.trim(),
+        empresa:  data.empresa.trim(),
+        email:    data.email.trim().toLowerCase(),
+        telefono: data.telefono?.trim() ?? null,
+        archivoUrl: data.archivoUrl ?? null,
+      }
+    })
 
-  // Generar token de verificación y enviar email
-  const token = require('crypto').randomUUID()
-  await prisma.referencia.update({ where: { id: ref.id }, data: { tokenVerif: token } })
+    // Generar token de verificación y enviar email
+    const token = require('crypto').randomUUID()
+    await prisma.referencia.update({ where: { id: ref.id }, data: { tokenVerif: token } })
 
-  const candidato = await prisma.candidato.findUnique({ where: { id: candidatoId } })
-  const base = (process.env.FRONTEND_URL ?? '').replace(/\/$/, '')
-  const mail = emailReferencia({
-    nombreCandidato: `${candidato?.nombre} ${candidato?.apellido}`.trim(),
-    cargo:           data.cargo,
-    empresa:         data.empresa,
-    verificarUrl:    `${base}/referencias/verificar/${token}`,
-  })
-  await transporter.sendMail({ from: process.env.MAIL_FROM, to: data.email, ...mail }).catch(console.error)
+    const candidato = await prisma.candidato.findUnique({ where: { id: candidatoId } })
+    const base = (process.env.FRONTEND_URL ?? '').replace(/\/$/, '')
+    const mail = emailReferencia({
+      nombreCandidato: `${candidato?.nombre} ${candidato?.apellido}`.trim(),
+      cargo:           data.cargo,
+      empresa:         data.empresa,
+      verificarUrl:    `${base}/referencias/verificar/${token}`,
+    })
+    await transporter.sendMail({ from: process.env.MAIL_FROM, to: data.email, ...mail }).catch(console.error)
 
-  return { message: 'Referencia agregada. Se envió email de verificación.', referencia: ref }
+    return { message: 'Referencia agregada. Se envió email de verificación.', referencia: ref }
+  } catch (error: any) {
+    console.error('Error al crear referencia:', error)
+    throw new AppError(error.message || 'Error al guardar referencia', 400)
+  }
+}
+
+export const actualizarReferencia = async (candidatoId: number, refId: number, data: any) => {
+  if (!data.nombre || !data.cargo || !data.empresa || !data.email)
+    throw new AppError('Nombre, cargo, empresa y email son requeridos', 400)
+
+  try {
+    const ref = await prisma.referencia.update({
+      where: { id: refId },
+      data: {
+        nombre:   data.nombre.trim(),
+        cargo:    data.cargo.trim(),
+        empresa:  data.empresa.trim(),
+        email:    data.email.trim().toLowerCase(),
+        telefono: data.telefono?.trim() ?? null,
+        archivoUrl: data.archivoUrl ?? null,
+      }
+    })
+    return ref
+  } catch (error: any) {
+    console.error('Error al actualizar referencia:', error)
+    throw new AppError(error.message || 'Error al actualizar referencia', 400)
+  }
+}
+
+export const eliminarReferencia = async (candidatoId: number, refId: number) => {
+  const r = await prisma.referencia.findFirst({ where: { id: refId, candidatoId } })
+  if (!r) throw new AppError('Referencia no encontrada', 404)
+  await prisma.referencia.delete({ where: { id: refId } })
+  return { message: 'Referencia eliminada' }
 }
 
 export const verificarReferencia = async (token: string) => {

@@ -9,14 +9,22 @@
     color: #f1f5f9;
   }
 
+  /* Tema claro para usuarios autenticados */
+  body.app-light {
+    background-color: #f0f4f8;
+    color: #1a2744;
+  }
+
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Poppins', sans-serif;
   }
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: #111827; }
+  ::-webkit-scrollbar-track { background: #e2e8f0; }
   ::-webkit-scrollbar-thumb { background: #2563a8; border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: #5aaa2a; }
+
+  body.app-light ::-webkit-scrollbar-track { background: #e2e8f0; }
 }
 
 @layer utilities {
@@ -34,6 +42,7 @@
     background-clip: text;
   }
 
+  /* Glass oscuro (landing/login) */
   .glass {
     background: rgba(255,255,255,0.05);
     backdrop-filter: blur(12px);
@@ -46,12 +55,20 @@
     border: 1px solid rgba(37,99,168,0.2);
   }
 
+  /* Cards para tema claro */
+  .card-light {
+    background: #ffffff;
+    border: 1px solid #dde3ed;
+    border-radius: 1rem;
+    box-shadow: 0 1px 4px rgba(26,39,68,0.06), 0 4px 16px rgba(26,39,68,0.04);
+  }
+
   .card-hover {
     transition: all 0.3s ease;
   }
   .card-hover:hover {
     transform: translateY(-4px);
-    box-shadow: 0 20px 40px rgba(37,99,168,0.2);
+    box-shadow: 0 20px 40px rgba(37,99,168,0.12);
   }
 
   .match-ring {

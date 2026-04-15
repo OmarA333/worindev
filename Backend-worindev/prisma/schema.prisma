@@ -147,6 +147,7 @@ model Experiencia {
   fechaInicio DateTime
   fechaFin    DateTime?
   actual      Boolean  @default(false)
+  archivoUrl  String?  // URL del archivo (certificado, contrato, etc)
   createdAt   DateTime @default(now())
 
   candidato Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
@@ -163,6 +164,7 @@ model Educacion {
   fechaInicio DateTime
   fechaFin    DateTime?
   actual      Boolean  @default(false)
+  archivoUrl  String?  // URL del archivo (diploma, certificado, etc)
   createdAt   DateTime @default(now())
 
   candidato Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
@@ -180,6 +182,7 @@ model Referencia {
   telefono    String?
   verificado  Boolean  @default(false)
   tokenVerif  String?  @unique
+  archivoUrl  String?  // URL del archivo (carta de referencia, etc)
   createdAt   DateTime @default(now())
 
   candidato Candidato @relation(fields: [candidatoId], references: [id], onDelete: Cascade)

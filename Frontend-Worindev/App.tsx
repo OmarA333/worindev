@@ -11,7 +11,10 @@ import { MatchingPage } from './src/features/matching/pages/MatchingPage';
 import { TestsPage } from './src/features/candidato/pages/TestsPage';
 import { PostulacionesPage } from './src/features/candidato/pages/PostulacionesPage';
 import { EntrevistasPage } from './src/features/candidato/pages/EntrevistasPage';
+import { CurriculoPage } from './src/features/candidato/pages/CurriculoPage';
 import { PerfilPage } from './src/features/home/pages/PerfilPage';
+import { EmpresasPage } from './src/features/empresas/pages/EmpresasPage';
+import { CandidatosPage } from './src/features/candidatos/pages/CandidatosPage';
 import { UserRole } from './types';
 import { Toaster } from 'react-hot-toast';
 import { Menu } from 'lucide-react';
@@ -22,6 +25,16 @@ const MainLayout: React.FC = () => {
   const [currentPath,      setCurrentPath]      = useState('/');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isPanelOpen,      setIsPanelOpen]      = useState(true);
+
+  // Aplica tema claro cuando el usuario está autenticado
+  useEffect(() => {
+    if (isAuthenticated) {
+      document.body.classList.add('app-light');
+    } else {
+      document.body.classList.remove('app-light');
+    }
+    return () => document.body.classList.remove('app-light');
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (isAuthenticated && ['/', '/login', '/register'].includes(currentPath)) {
@@ -48,10 +61,10 @@ const MainLayout: React.FC = () => {
       case '/tests':         return <TestsPage        onNavigate={setCurrentPath} />;
       case '/postulaciones': return <PostulacionesPage onNavigate={setCurrentPath} />;
       case '/entrevistas':   return <EntrevistasPage  onNavigate={setCurrentPath} />;
+      case '/curriculo':     return <CurriculoPage    onNavigate={setCurrentPath} />;
       case '/perfil':        return <PerfilPage       onNavigate={setCurrentPath} />;
-      // Placeholders for admin/empresa pages
-      case '/empresas':
-      case '/candidatos':
+      case '/empresas':      return <EmpresasPage      onNavigate={setCurrentPath} />;
+      case '/candidatos':    return <CandidatosPage    onNavigate={setCurrentPath} />;
       case '/reportes':
       case '/configuracion':
         return <PlaceholderPage title={currentPath.slice(1)} onNavigate={setCurrentPath} />;
@@ -60,12 +73,12 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen bg-dark-900">
+    <div className="flex min-h-screen bg-surface-bg">
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-14 glass-dark border-b border-white/5 flex items-center justify-between px-4 z-40">
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-surface-border flex items-center justify-between px-4 z-40 shadow-sm">
         <LogoLight size="sm" variant="icon" />
         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-colors">
+          className="p-2 text-ink-500 hover:text-ink-900 hover:bg-surface-border rounded-lg transition-colors">
           <Menu size={22} />
         </button>
       </div>

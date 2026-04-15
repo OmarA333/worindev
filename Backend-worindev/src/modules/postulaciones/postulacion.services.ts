@@ -1,6 +1,12 @@
 import prisma from '../../config/prisma'
 import { AppError } from '../../utils/AppError'
 import { calcularMatchConVacante } from '../matching/matching.services'
+import transporter from '../../config/mailer'
+import { emailEntrevista } from '../../utils/email.templates'
+
+const UMBRAL_AUTO    = 93
+const MAX_CANDIDATOS = 10
+const HORAS_CONFIRMAR = 12
 
 const include = {
   vacante:   { include: { empresa: { select: { nombre: true, logoUrl: true } } } },
@@ -10,14 +16,12 @@ const include = {
 export const listarPostulaciones = async (query: any, user: any) => {
   const { vacanteId, candidatoId, estado } = query
 
-  // Candidato solo ve las suyas
   let filtroExtra: any = {}
   if (user.rol === 'CANDIDATO') {
     const c = await prisma.candidato.findFirst({ where: { usuarioId: user.id } })
     if (!c) return []
     filtroExtra.candidatoId = c.id
   }
-  // Empresa solo ve las de sus vacantes
   if (user.rol === 'EMPRESA') {
     const e = await prisma.empresa.findFirst({ where: { usuarioId: user.id } })
     if (!e) return []
@@ -46,10 +50,16 @@ export const postular = async (data: any, user: any) => {
   const { vacanteId } = data
   if (!vacanteId) throw new AppError('vacanteId es requerido', 400)
 
-  const candidato = await prisma.candidato.findFirst({ where: { usuarioId: user.id } })
+  const candidato = await prisma.candidato.findFirst({
+    where: { usuarioId: user.id },
+    include: { usuario: { select: { email: true } } },
+  })
   if (!candidato) throw new AppError('Perfil de candidato no encontrado', 404)
 
-  const vacante = await prisma.vacante.findUnique({ where: { id: Number(vacanteId) } })
+  const vacante = await prisma.vacante.findUnique({
+    where: { id: Number(vacanteId) },
+    include: { empresa: true },
+  })
   if (!vacante) throw new AppError('Vacante no encontrada', 404)
   if (vacante.estado !== 'ACTIVA') throw new AppError('Esta vacante no está activa', 409)
 
@@ -58,15 +68,79 @@ export const postular = async (data: any, user: any) => {
   })
   if (yaPostulado) throw new AppError('Ya te postulaste a esta vacante', 409)
 
-  // Calcular match score específico para esta vacante
   const matchScore = await calcularMatchConVacante(candidato.id, Number(vacanteId))
 
+  // ── Confirmación automática si matchScore >= 93% ──────────────────────────
+  const autoConfirmado = matchScore >= UMBRAL_AUTO
+  const estadoInicial  = autoConfirmado ? 'ENTREVISTA' : 'PENDIENTE'
+
   const postulacion = await prisma.postulacion.create({
-    data: { vacanteId: Number(vacanteId), candidatoId: candidato.id, matchScore },
+    data: { vacanteId: Number(vacanteId), candidatoId: candidato.id, matchScore, estado: estadoInicial },
     include,
   })
 
-  return { message: 'Postulación enviada exitosamente', postulacion, matchScore }
+  if (autoConfirmado) {
+    // Buscar entrevista grupal existente para esta vacante con cupo disponible
+    let entrevista = await prisma.entrevistaGrupal.findFirst({
+      where: {
+        vacanteId: Number(vacanteId),
+        estado:    'PROGRAMADA',
+      },
+      include: { _count: { select: { invitaciones: true } } },
+      orderBy: { fecha: 'asc' },
+    })
+
+    // Si no hay entrevista o está llena, crear una nueva (fecha tentativa: 7 días)
+    if (!entrevista || (entrevista as any)._count.invitaciones >= MAX_CANDIDATOS) {
+      const fecha     = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+      entrevista = await prisma.entrevistaGrupal.create({
+        data: {
+          vacanteId:     Number(vacanteId),
+          fecha,
+          modalidad:     'PRESENCIAL',
+          maxCandidatos: MAX_CANDIDATOS,
+        },
+        include: { _count: { select: { invitaciones: true } } },
+      })
+    }
+
+    const expiresAt = new Date(entrevista.fecha.getTime() - HORAS_CONFIRMAR * 60 * 60 * 1000)
+
+    // Crear invitación
+    const invitacion = await prisma.invitacionEntrevista.create({
+      data: { entrevistaId: entrevista.id, candidatoId: candidato.id, expiresAt },
+    })
+
+    // Enviar email de convocatoria
+    const base     = (process.env.FRONTEND_URL ?? '').replace(/\/$/, '')
+    const fechaStr = entrevista.fecha.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    const horaStr  = entrevista.fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+
+    const mail = emailEntrevista({
+      nombre:       `${candidato.nombre} ${candidato.apellido}`.trim(),
+      vacante:      vacante.titulo,
+      empresa:      vacante.empresa.nombre,
+      fecha:        fechaStr,
+      hora:         horaStr,
+      modalidad:    entrevista.modalidad,
+      enlace:       entrevista.enlace ?? undefined,
+      direccion:    entrevista.direccion ?? undefined,
+      confirmUrl:   `${base}/entrevistas/confirmar/${invitacion.tokenConfirm}`,
+      expiresHoras: HORAS_CONFIRMAR,
+    })
+
+    await transporter.sendMail({ from: process.env.MAIL_FROM, to: candidato.usuario.email, ...mail })
+      .catch(console.error)
+  }
+
+  return {
+    message:         autoConfirmado
+      ? `¡Felicitaciones! Tu compatibilidad es ${matchScore}%. Fuiste convocado automáticamente a entrevista grupal.`
+      : 'Postulación enviada exitosamente',
+    postulacion,
+    matchScore,
+    autoConfirmado,
+  }
 }
 
 export const cambiarEstado = async (id: number, estado: string, notasAdmin?: string) => {
