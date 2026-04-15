@@ -1,0 +1,46 @@
+{
+  "name": "worindev",
+  "version": "1.0.0",
+  "description": "Worindev — Plataforma inteligente de búsqueda de empleo",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "ts-node-dev -r dotenv/config --respawn --transpile-only src/index.ts",
+    "studio": "dotenv -e .env -- prisma studio",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:seed": "ts-node -r dotenv/config prisma/seed.ts",
+    "prisma:reset": "prisma migrate reset --force"
+  },
+  "keywords": ["empleo", "matching", "reclutamiento"],
+  "author": "Omar Andres Gonzalez",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/client": "^7.6.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.0",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^8.0.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^22.14.0",
+    "@types/nodemailer": "^7.0.11",
+    "dotenv-cli": "^11.0.0",
+    "prisma": "^7.6.0",
+    "ts-node": "^10.9.2"
+  }
+}
