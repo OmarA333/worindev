@@ -9,7 +9,7 @@ const HORAS_CONFIRMAR = 12  // horas para confirmar
 
 const include = {
   vacante:      { include: { empresa: { select: { nombre: true } } } },
-  invitaciones: { include: { candidato: { select: { nombre: true, apellido: true, matchScore: true } } } },
+  invitaciones: { include: { entrevista: { include: { vacante: { include: { empresa: true } } } } } },
 }
 
 export const listarEntrevistas = async (query: any, user: any) => {
@@ -115,7 +115,10 @@ export const crearEntrevista = async (data: any) => {
 
   const invitaciones = await prisma.invitacionEntrevista.findMany({
     where: { entrevistaId: entrevista.id },
-    include: { candidato: { include: { usuario: { select: { email: true } } } } }
+    include: { 
+      entrevista: { include: { vacante: { include: { empresa: true } } } },
+      candidato: true
+    }
   })
 
   await Promise.allSettled(
@@ -147,7 +150,14 @@ export const cambiarEstado = async (id: number, estado: string) => {
   const estados = ['PROGRAMADA', 'REALIZADA', 'CANCELADA']
   if (!estados.includes(estado)) throw new AppError(`Estado inválido. Opciones: ${estados.join(', ')}`, 400)
 
-  const e = await prisma.entrevistaGrupal.update({ where: { id }, data: { estado: estado as any }, include })
+  const e = await prisma.entrevistaGrupal.update({ 
+    where: { id }, 
+    data: { estado: estado as any },
+    include: { 
+      vacante: { include: { empresa: { select: { nombre: true } } } },
+      invitaciones: { include: { candidato: true } }
+    }
+  })
   return { message: 'Estado actualizado', entrevista: e }
 }
 
@@ -161,7 +171,10 @@ export const eliminarEntrevista = async (id: number) => {
 export const confirmarAsistencia = async (token: string) => {
   const inv = await prisma.invitacionEntrevista.findUnique({
     where: { tokenConfirm: token },
-    include: { entrevista: { include: { vacante: { include: { empresa: true } } } } }
+    include: { 
+      entrevista: { include: { vacante: { include: { empresa: true } } } },
+      candidato: { include: { usuario: { select: { email: true } } } }
+    }
   })
 
   if (!inv) throw new AppError('Token de confirmación inválido', 400)

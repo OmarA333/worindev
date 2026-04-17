@@ -122,6 +122,7 @@ model Candidato {
   postulaciones Postulacion[]
   testResultados TestResultado[]
   referencias   Referencia[]
+  invitaciones  InvitacionEntrevista[]
 
   @@map("candidato")
 }
@@ -232,6 +233,19 @@ model Vacante {
   nivelEducacion  NivelEducacion?
   anosExperiencia Int           @default(0)
   estado          EstadoVacante @default(ACTIVA)
+  
+  // Requerimientos adicionales
+  requiereTestHardSkill    Boolean @default(false)
+  puntajeMinHardSkill      Int?    // Puntaje mínimo requerido (0-100)
+  requiereTestSoftSkill    Boolean @default(false)
+  puntajeMinSoftSkill      Int?
+  requiereTestPsicometria  Boolean @default(false)
+  puntajeMinPsicometria    Int?
+  requiereTestLogistica    Boolean @default(false)
+  puntajeMinLogistica      Int?
+  requiereReferencias      Boolean @default(false)
+  minimoReferencias        Int?    // Número mínimo de referencias verificadas
+  
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -292,6 +306,7 @@ model InvitacionEntrevista {
   createdAt      DateTime @default(now())
 
   entrevista EntrevistaGrupal @relation(fields: [entrevistaId], references: [id], onDelete: Cascade)
+  candidato  Candidato        @relation(fields: [candidatoId], references: [id], onDelete: Cascade)
 
   @@unique([entrevistaId, candidatoId])
   @@map("invitacion_entrevista")
@@ -316,12 +331,13 @@ model Test {
 }
 
 model Pregunta {
-  id       Int    @id @default(autoincrement())
-  testId   Int
-  texto    String
-  tipo     String @default("OPCION_MULTIPLE") // OPCION_MULTIPLE, ESCALA, ABIERTA
-  opciones Json?  // [{texto, valor}]
-  orden    Int    @default(0)
+  id                Int    @id @default(autoincrement())
+  testId            Int
+  texto             String
+  tipo              String @default("OPCION_MULTIPLE") // OPCION_MULTIPLE, ESCALA, ABIERTA
+  opciones          Json?  // [{texto, valor}] o array de strings
+  respuestaCorrecta Int?   // índice de la respuesta correcta (0-based)
+  orden             Int    @default(0)
 
   test Test @relation(fields: [testId], references: [id], onDelete: Cascade)
 

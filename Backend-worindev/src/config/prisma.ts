@@ -1,11 +1,15 @@
-import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../generated/prisma'
-import 'dotenv/config'
+import { PrismaPg } from '@prisma/adapter-pg'
+import { Pool } from 'pg'
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
+// Crear pool de conexiones
+const pool = new Pool({ connectionString: process.env.DATABASE_URL })
+const adapter = new PrismaPg(pool)
 
-const prisma = new PrismaClient({ adapter })
+// Crear una sola instancia de PrismaClient (singleton) con optimizaciones
+const prisma = new PrismaClient({
+  adapter,
+  log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
+})
 
 export default prisma
-
-/////no tocar esto, es para que la base de datos se inicie al iniciar el servidor dejarlo como esta 

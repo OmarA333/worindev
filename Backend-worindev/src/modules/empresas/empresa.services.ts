@@ -31,6 +31,18 @@ export const obtenerEmpresa = async (id: number) => {
   return e
 }
 
+export const obtenerEmpresaActual = async (user: any) => {
+  const e = await prisma.empresa.findUnique({
+    where: { usuarioId: user.id },
+    include: {
+      ...include,
+      vacantes: { where: { estado: 'ACTIVA' }, orderBy: { createdAt: 'desc' }, take: 5 }
+    }
+  })
+  if (!e) throw new AppError('Perfil de empresa no encontrado', 404)
+  return e
+}
+
 export const actualizarEmpresa = async (id: number, data: any) => {
   const existe = await prisma.empresa.findUnique({ where: { id } })
   if (!existe) throw new AppError('Empresa no encontrada', 404)

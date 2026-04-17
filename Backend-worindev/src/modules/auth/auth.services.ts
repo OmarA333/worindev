@@ -19,7 +19,6 @@ const RegistroSchema = z.object({
   // Candidato
   telefono: z.string().trim().optional(),
   ciudad: z.string().trim().optional(),
-  departamento: z.string().trim().optional(),
   disponibilidad: z.string().trim().optional(),
   // Empresa
   nombreEmpresa: z.string().trim().min(2).max(150).optional(),
@@ -61,7 +60,6 @@ export const registrar = async (data: unknown) => {
           apellido: d.apellido ?? '',
           telefono: d.telefono ?? null,
           ciudad: d.ciudad ?? null,
-          departamento: d.departamento ?? null,
           disponibilidad: d.disponibilidad ?? null,
         }
       })
@@ -94,9 +92,12 @@ export const login = async (email: string, password: string) => {
   const ok = await bcrypt.compare(password, usuario.password)
   if (!ok) throw new AppError('Credenciales inválidas', 401)
 
-  const nombre = usuario.candidato
-    ? `${usuario.candidato.nombre} ${usuario.candidato.apellido}`.trim()
-    : usuario.empresa?.nombre ?? ''
+  let nombre = 'Administrador'
+  if (usuario.candidato) {
+    nombre = `${usuario.candidato.nombre} ${usuario.candidato.apellido}`.trim()
+  } else if (usuario.empresa) {
+    nombre = usuario.empresa.nombre
+  }
 
   const token = jwt.sign(
     { id: usuario.id, email: usuario.email, rol: usuario.rol },

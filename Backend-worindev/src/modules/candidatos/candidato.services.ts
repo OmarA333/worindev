@@ -6,30 +6,46 @@ import { calcularMatchScore } from '../matching/matching.services'
 
 // ─── LISTAR ───────────────────────────────────────────────────────────────────
 export const listarCandidatos = async (query: any) => {
-  const { buscar, ciudad, habilidad, minScore } = query
+  const { buscar, ciudad, habilidad, minScore, page = 1, limit = 20 } = query
+  const skip = (Number(page) - 1) * Number(limit)
 
-  const candidatos = await prisma.candidato.findMany({
-    where: {
-      ...(buscar ? {
-        OR: [
-          { nombre:   { contains: buscar, mode: 'insensitive' } },
-          { apellido: { contains: buscar, mode: 'insensitive' } },
-          { usuario:  { email: { contains: buscar, mode: 'insensitive' } } },
-        ]
-      } : {}),
-      ...(ciudad ? { ciudad: { contains: ciudad, mode: 'insensitive' } } : {}),
-      ...(habilidad ? { habilidades: { some: { habilidad: { contains: habilidad, mode: 'insensitive' } } } } : {}),
-      ...(minScore ? { matchScore: { gte: Number(minScore) } } : {}),
-    },
-    include: {
-      usuario:     { select: { email: true, estado: true } },
-      habilidades: true,
-      _count:      { select: { postulaciones: true } },
-    },
-    orderBy: { matchScore: 'desc' },
-  })
+  const where = {
+    ...(buscar ? {
+      OR: [
+        { nombre:   { contains: buscar, mode: 'insensitive' } },
+        { apellido: { contains: buscar, mode: 'insensitive' } },
+        { usuario:  { email: { contains: buscar, mode: 'insensitive' } } },
+      ]
+    } : {}),
+    ...(ciudad ? { ciudad: { contains: ciudad, mode: 'insensitive' } } : {}),
+    ...(habilidad ? { habilidades: { some: { habilidad: { contains: habilidad, mode: 'insensitive' } } } } : {}),
+    ...(minScore ? { matchScore: { gte: Number(minScore) } } : {}),
+  }
 
-  return candidatos
+  const [candidatos, total] = await Promise.all([
+    prisma.candidato.findMany({
+      where,
+      include: {
+        usuario:     { select: { email: true, estado: true } },
+        habilidades: { take: 10 },
+        _count:      { select: { postulaciones: true } },
+      },
+      orderBy: { matchScore: 'desc' },
+      skip,
+      take: Number(limit),
+    }),
+    prisma.candidato.count({ where })
+  ])
+
+  return {
+    candidatos,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      totalPages: Math.ceil(total / Number(limit))
+    }
+  }
 }
 
 // ─── OBTENER ──────────────────────────────────────────────────────────────────
@@ -38,11 +54,14 @@ export const obtenerCandidato = async (id: number) => {
     where: { id },
     include: {
       usuario:      { select: { email: true, estado: true, createdAt: true } },
-      habilidades:  true,
-      experiencias: { orderBy: { fechaInicio: 'desc' } },
-      educaciones:  { orderBy: { fechaInicio: 'desc' } },
-      referencias:  true,
-      testResultados: { include: { test: true } },
+      habilidades:  { take: 20 },
+      experiencias: { orderBy: { fechaInicio: 'desc' }, take: 10 },
+      educaciones:  { orderBy: { fechaInicio: 'desc' }, take: 10 },
+      referencias:  { take: 5 },
+      testResultados: { 
+        include: { test: { select: { id: true, nombre: true, tipo: true } } },
+        take: 10
+      },
       _count: { select: { postulaciones: true } },
     }
   })
@@ -55,11 +74,14 @@ export const obtenerCandidatoActual = async (user: any) => {
     where: { usuarioId: user.id },
     include: {
       usuario:      { select: { email: true, estado: true, createdAt: true } },
-      habilidades:  true,
-      experiencias: { orderBy: { fechaInicio: 'desc' } },
-      educaciones:  { orderBy: { fechaInicio: 'desc' } },
-      referencias:  true,
-      testResultados: { include: { test: true } },
+      habilidades:  { take: 20 },
+      experiencias: { orderBy: { fechaInicio: 'desc' }, take: 10 },
+      educaciones:  { orderBy: { fechaInicio: 'desc' }, take: 10 },
+      referencias:  { take: 5 },
+      testResultados: { 
+        include: { test: { select: { id: true, nombre: true, tipo: true } } },
+        take: 10
+      },
       _count: { select: { postulaciones: true } },
     }
   })
@@ -69,14 +91,56 @@ export const obtenerCandidatoActual = async (user: any) => {
 
 // ─── ACTUALIZAR ───────────────────────────────────────────────────────────────
 export const actualizarCandidato = async (id: number, data: any) => {
-  const existe = await prisma.candidato.findUnique({ where: { id } })
+  const existe = await prisma.candidato.findUnique({ 
+    where: { id },
+    include: {
+      experiencias: true,
+      educaciones: true,
+    }
+  })
   if (!existe) throw new AppError('Candidato no encontrado', 404)
 
   const {
-    nombre, apellido, telefono, ciudad, departamento, foto, cvUrl,
+    nombre, apellido, telefono, ciudad, foto, cvUrl,
     nivelEducacion, tituloObtenido, anosExperiencia, pretensionSalarial,
     disponibilidad, modalidadPreferida, resumen, linkedinUrl, githubUrl
   } = data
+
+  // Calcular años de experiencia desde experiencias si no se proporciona
+  let anosExp = anosExperiencia !== undefined ? Number(anosExperiencia) : undefined
+  if (anosExp === undefined && existe.experiencias.length > 0) {
+    let total = 0
+    existe.experiencias.forEach(exp => {
+      const inicio = new Date(exp.fechaInicio)
+      const fin = exp.actual ? new Date() : new Date(exp.fechaFin!)
+      const anos = (fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+      total += Math.max(0, anos)
+    })
+    anosExp = Math.round(total * 10) / 10
+  }
+
+  // Obtener nivel más alto de educación desde educaciones si no se proporciona
+  let nivelEdu = nivelEducacion
+  if (!nivelEdu && existe.educaciones.length > 0) {
+    const nivelesOrden: Record<string, number> = {
+      'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
+      'ESPECIALIZACION': 5, 'MAESTRIA': 6, 'DOCTORADO': 7,
+    }
+    let maxNivel = 0
+    existe.educaciones.forEach(edu => {
+      const nivel = nivelesOrden[edu.nivel] || 0
+      if (nivel > maxNivel) {
+        maxNivel = nivel
+        nivelEdu = edu.nivel
+      }
+    })
+  }
+
+  // Obtener títulos desde educaciones si no se proporciona
+  let titulos = tituloObtenido
+  if (!titulos && existe.educaciones.length > 0) {
+    titulos = existe.educaciones.map(e => e.titulo).filter(t => t).join(', ')
+  }
 
   const actualizado = await prisma.candidato.update({
     where: { id },
@@ -85,12 +149,11 @@ export const actualizarCandidato = async (id: number, data: any) => {
       ...(apellido           !== undefined && { apellido }),
       ...(telefono           !== undefined && { telefono }),
       ...(ciudad             !== undefined && { ciudad }),
-      ...(departamento       !== undefined && { departamento }),
       ...(foto               !== undefined && { foto }),
       ...(cvUrl              !== undefined && { cvUrl }),
-      ...(nivelEducacion     !== undefined && { nivelEducacion }),
-      ...(tituloObtenido     !== undefined && { tituloObtenido }),
-      ...(anosExperiencia    !== undefined && { anosExperiencia: Number(anosExperiencia) }),
+      ...(nivelEdu           !== undefined && { nivelEducacion: nivelEdu }),
+      ...(titulos            !== undefined && { tituloObtenido: titulos }),
+      ...(anosExp            !== undefined && { anosExperiencia: anosExp }),
       ...(pretensionSalarial !== undefined && { pretensionSalarial: Number(pretensionSalarial) }),
       ...(disponibilidad     !== undefined && { disponibilidad }),
       ...(modalidadPreferida !== undefined && { modalidadPreferida }),
@@ -100,9 +163,12 @@ export const actualizarCandidato = async (id: number, data: any) => {
     }
   })
 
-  // Recalcular match score
-  const nuevoScore = await calcularMatchScore(id)
-  await prisma.candidato.update({ where: { id }, data: { matchScore: nuevoScore } })
+  // Recalcular match score y generar citaciones si alcanza 93%
+  calcularMatchScore(id).then(async nuevoScore => {
+    await prisma.candidato.update({ where: { id }, data: { matchScore: nuevoScore } })
+    const { recalcularMatchPostulaciones } = await import('../postulaciones/postulacion.services')
+    await recalcularMatchPostulaciones(id)
+  }).catch(console.error)
 
   return { message: 'Perfil actualizado', candidato: actualizado }
 }
@@ -136,8 +202,12 @@ export const agregarHabilidad = async (candidatoId: number, data: { habilidad: s
       data: { candidatoId, habilidad: data.habilidad.trim(), nivel: data.nivel ?? 'Intermedio' }
     })
 
-    const score = await calcularMatchScore(candidatoId)
-    await prisma.candidato.update({ where: { id: candidatoId }, data: { matchScore: score } })
+    // Recalcular score y generar citaciones si alcanza 93%
+    calcularMatchScore(candidatoId).then(async score => {
+      await prisma.candidato.update({ where: { id: candidatoId }, data: { matchScore: score } })
+      const { recalcularMatchPostulaciones } = await import('../postulaciones/postulacion.services')
+      await recalcularMatchPostulaciones(candidatoId)
+    }).catch(console.error)
 
     return h
   } catch (error: any) {
@@ -187,8 +257,26 @@ export const agregarExperiencia = async (candidatoId: number, data: any) => {
       }
     })
 
-    const score = await calcularMatchScore(candidatoId)
-    await prisma.candidato.update({ where: { id: candidatoId }, data: { matchScore: score } })
+    // Recalcular años de experiencia desde todas las experiencias
+    const experiencias = await prisma.experiencia.findMany({ where: { candidatoId } })
+    let totalAnos = 0
+    experiencias.forEach(e => {
+      const inicio = new Date(e.fechaInicio)
+      const fin = e.actual ? new Date() : new Date(e.fechaFin!)
+      const anos = (fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+      totalAnos += Math.max(0, anos)
+    })
+    await prisma.candidato.update({
+      where: { id: candidatoId },
+      data: { anosExperiencia: Math.round(totalAnos * 10) / 10 }
+    })
+
+    // Recalcular score y generar citaciones si alcanza 93%
+    calcularMatchScore(candidatoId).then(async score => {
+      await prisma.candidato.update({ where: { id: candidatoId }, data: { matchScore: score } })
+      const { recalcularMatchPostulaciones } = await import('../postulaciones/postulacion.services')
+      await recalcularMatchPostulaciones(candidatoId)
+    }).catch(console.error)
 
     return exp
   } catch (error: any) {
@@ -214,6 +302,21 @@ export const actualizarExperiencia = async (candidatoId: number, expId: number, 
         archivoUrl:  data.archivoUrl ?? null,
       }
     })
+
+    // Recalcular años de experiencia desde todas las experiencias
+    const experiencias = await prisma.experiencia.findMany({ where: { candidatoId } })
+    let totalAnos = 0
+    experiencias.forEach(e => {
+      const inicio = new Date(e.fechaInicio)
+      const fin = e.actual ? new Date() : new Date(e.fechaFin!)
+      const anos = (fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+      totalAnos += Math.max(0, anos)
+    })
+    await prisma.candidato.update({
+      where: { id: candidatoId },
+      data: { anosExperiencia: Math.round(totalAnos * 10) / 10 }
+    })
+
     return exp
   } catch (error: any) {
     console.error('Error al actualizar experiencia:', error)
@@ -225,6 +328,21 @@ export const eliminarExperiencia = async (candidatoId: number, expId: number) =>
   const e = await prisma.experiencia.findFirst({ where: { id: expId, candidatoId } })
   if (!e) throw new AppError('Experiencia no encontrada', 404)
   await prisma.experiencia.delete({ where: { id: expId } })
+
+  // Recalcular años de experiencia desde todas las experiencias restantes
+  const experiencias = await prisma.experiencia.findMany({ where: { candidatoId } })
+  let totalAnos = 0
+  experiencias.forEach(exp => {
+    const inicio = new Date(exp.fechaInicio)
+    const fin = exp.actual ? new Date() : new Date(exp.fechaFin!)
+    const anos = (fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+    totalAnos += Math.max(0, anos)
+  })
+  await prisma.candidato.update({
+    where: { id: candidatoId },
+    data: { anosExperiencia: Math.round(totalAnos * 10) / 10 }
+  })
+
   return { message: 'Experiencia eliminada' }
 }
 
@@ -251,8 +369,37 @@ export const agregarEducacion = async (candidatoId: number, data: any) => {
       }
     })
 
-    const score = await calcularMatchScore(candidatoId)
-    await prisma.candidato.update({ where: { id: candidatoId }, data: { matchScore: score } })
+    // Recalcular nivel más alto y títulos desde todas las educaciones
+    const educaciones = await prisma.educacion.findMany({ where: { candidatoId } })
+    const nivelesOrden: Record<string, number> = {
+      'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
+      'ESPECIALIZACION': 5, 'MAESTRIA': 6, 'DOCTORADO': 7,
+    }
+    let nivelMasAlto = ''
+    let maxNivel = 0
+    educaciones.forEach(e => {
+      const nivel = nivelesOrden[e.nivel] || 0
+      if (nivel > maxNivel) {
+        maxNivel = nivel
+        nivelMasAlto = e.nivel
+      }
+    })
+    const titulos = educaciones.map(e => e.titulo).filter(t => t).join(', ')
+    
+    await prisma.candidato.update({
+      where: { id: candidatoId },
+      data: { 
+        nivelEducacion: nivelMasAlto as any,
+        tituloObtenido: titulos
+      }
+    })
+
+    // Recalcular score y generar citaciones si alcanza 93%
+    calcularMatchScore(candidatoId).then(async score => {
+      await prisma.candidato.update({ where: { id: candidatoId }, data: { matchScore: score } })
+      const { recalcularMatchPostulaciones } = await import('../postulaciones/postulacion.services')
+      await recalcularMatchPostulaciones(candidatoId)
+    }).catch(console.error)
 
     return edu
   } catch (error: any) {
@@ -282,6 +429,32 @@ export const actualizarEducacion = async (candidatoId: number, eduId: number, da
         archivoUrl:  data.archivoUrl ?? null,
       }
     })
+
+    // Recalcular nivel más alto y títulos desde todas las educaciones
+    const educaciones = await prisma.educacion.findMany({ where: { candidatoId } })
+    const nivelesOrden: Record<string, number> = {
+      'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
+      'ESPECIALIZACION': 5, 'MAESTRIA': 6, 'DOCTORADO': 7,
+    }
+    let nivelMasAlto = ''
+    let maxNivel = 0
+    educaciones.forEach(e => {
+      const nivel = nivelesOrden[e.nivel] || 0
+      if (nivel > maxNivel) {
+        maxNivel = nivel
+        nivelMasAlto = e.nivel
+      }
+    })
+    const titulos = educaciones.map(e => e.titulo).filter(t => t).join(', ')
+    
+    await prisma.candidato.update({
+      where: { id: candidatoId },
+      data: { 
+        nivelEducacion: nivelMasAlto as any,
+        tituloObtenido: titulos
+      }
+    })
+
     return edu
   } catch (error: any) {
     console.error('Error al actualizar educación:', error)
@@ -293,6 +466,32 @@ export const eliminarEducacion = async (candidatoId: number, eduId: number) => {
   const e = await prisma.educacion.findFirst({ where: { id: eduId, candidatoId } })
   if (!e) throw new AppError('Educación no encontrada', 404)
   await prisma.educacion.delete({ where: { id: eduId } })
+
+  // Recalcular nivel más alto y títulos desde todas las educaciones restantes
+  const educaciones = await prisma.educacion.findMany({ where: { candidatoId } })
+  const nivelesOrden: Record<string, number> = {
+    'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
+    'ESPECIALIZACION': 5, 'MAESTRIA': 6, 'DOCTORADO': 7,
+  }
+  let nivelMasAlto = ''
+  let maxNivel = 0
+  educaciones.forEach(edu => {
+    const nivel = nivelesOrden[edu.nivel] || 0
+    if (nivel > maxNivel) {
+      maxNivel = nivel
+      nivelMasAlto = edu.nivel
+    }
+  })
+  const titulos = educaciones.map(edu => edu.titulo).filter(t => t).join(', ')
+  
+  await prisma.candidato.update({
+    where: { id: candidatoId },
+    data: { 
+      nivelEducacion: nivelMasAlto ? (nivelMasAlto as any) : null,
+      tituloObtenido: titulos || null
+    }
+  })
+
   return { message: 'Educación eliminada' }
 }
 
@@ -372,9 +571,28 @@ export const verificarReferencia = async (token: string) => {
 
   await prisma.referencia.update({ where: { id: ref.id }, data: { verificado: true } })
 
-  // Recalcular score
-  const score = await calcularMatchScore(ref.candidatoId)
-  await prisma.candidato.update({ where: { id: ref.candidatoId }, data: { matchScore: score } })
+  // Recalcular score y generar citaciones si alcanza 93%
+  calcularMatchScore(ref.candidatoId).then(async score => {
+    await prisma.candidato.update({ where: { id: ref.candidatoId }, data: { matchScore: score } })
+    const { recalcularMatchPostulaciones } = await import('../postulaciones/postulacion.services')
+    await recalcularMatchPostulaciones(ref.candidatoId)
+  }).catch(console.error)
 
   return { message: 'Referencia verificada exitosamente' }
+}
+
+// La empresa verifica manualmente las referencias durante/después de la entrevista
+export const verificarReferenciaEmpresa = async (candidatoId: number, refId: number) => {
+  const ref = await prisma.referencia.findFirst({ where: { id: refId, candidatoId } })
+  if (!ref) throw new AppError('Referencia no encontrada', 404)
+
+  const updated = await prisma.referencia.update({
+    where: { id: refId },
+    data: { verificado: !ref.verificado },
+  })
+
+  return { 
+    message: updated.verificado ? 'Referencia marcada como verificada' : 'Verificación removida',
+    referencia: updated 
+  }
 }

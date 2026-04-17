@@ -132,7 +132,7 @@ export const TestsPage: React.FC<Props> = ({ onNavigate }) => {
     }
   };
 
-  const handleCompleteTest = async (respuestas: any[], puntaje: number) => {
+  const handleCompleteTest = async (respuestas: any[]) => {
     try {
       const token = localStorage.getItem('wrd_token');
       const res = await fetch(`${API}/api/tests/${selectedTest!.id}/responder`, {
@@ -141,11 +141,20 @@ export const TestsPage: React.FC<Props> = ({ onNavigate }) => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ respuestas, puntaje }),
+        body: JSON.stringify({ respuestas }),
       });
 
       if (!res.ok) throw new Error('Error al enviar respuestas');
-      toast.success('¡Test completado!');
+      
+      const result = await res.json();
+      
+      let mensaje = `¡Test completado! Puntaje: ${result.puntaje}% (${result.correctas}/${result.totalPreguntas} correctas)`;
+      
+      if (result.citacionesGeneradas > 0) {
+        mensaje += `\n\n🎉 ¡Felicitaciones! Alcanzaste el 93% de compatibilidad en ${result.citacionesGeneradas} vacante(s). Has sido convocado automáticamente a entrevista grupal.`;
+      }
+      
+      toast.success(mensaje, { duration: 6000 });
       setShowForm(false);
       setSelectedTest(null);
       cargarTests();

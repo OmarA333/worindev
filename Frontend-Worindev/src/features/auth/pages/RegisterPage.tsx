@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { LogoLight } from '@/shared/components/Logo';
 import { ArrowRight, ArrowLeft, User, Building2, Home } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -12,7 +12,7 @@ export const RegisterPage: React.FC<Props> = ({ onNavigate }) => {
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     nombre: '', apellido: '', email: '', password: '', confirm: '',
-    telefono: '', ciudad: '', departamento: '', disponibilidad: '',
+    telefono: '', ciudad: '', disponibilidad: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -37,7 +37,6 @@ export const RegisterPage: React.FC<Props> = ({ onNavigate }) => {
         body.apellido = form.apellido;
         body.telefono = form.telefono;
         body.ciudad = form.ciudad;
-        body.departamento = form.departamento;
         body.disponibilidad = form.disponibilidad;
       } else {
         body.nombreEmpresa = form.nombre;
@@ -103,7 +102,6 @@ export const RegisterPage: React.FC<Props> = ({ onNavigate }) => {
         { key: 'email',    label: 'Correo electrónico',   type: 'email',    placeholder: 'tu@email.com',   required: true },
         { key: 'telefono', label: 'Teléfono',             type: 'tel',      placeholder: '+57 300 123 4567', required: false },
         { key: 'ciudad',   label: 'Ciudad',               type: 'text',     placeholder: 'Bogotá',         required: false },
-        { key: 'departamento', label: 'Departamento',     type: 'text',     placeholder: 'Cundinamarca',   required: false },
         { key: 'disponibilidad', label: 'Disponibilidad', type: 'select',   options: ['Inmediata', '15 días', '1 mes', 'Más de 1 mes'], required: false },
         { key: 'password', label: 'Contraseña',           type: 'password', placeholder: '••••••••',       required: true },
         { key: 'confirm',  label: 'Confirmar contraseña', type: 'password', placeholder: '••••••••',       required: true },
@@ -134,7 +132,7 @@ export const RegisterPage: React.FC<Props> = ({ onNavigate }) => {
           <form onSubmit={handleSubmit} className="space-y-4">
             {fields.map(f => (
               <div key={f.key}>
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5 block">
+                <label className="text-xs font-semibold text-slate-400 tracking-wider mb-1.5 block">
                   {f.label} {f.required && <span className="text-red-500">*</span>}
                 </label>
                 {f.type === 'select' ? (

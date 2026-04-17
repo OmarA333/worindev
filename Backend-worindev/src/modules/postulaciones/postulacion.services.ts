@@ -164,3 +164,112 @@ export const retirarPostulacion = async (id: number) => {
   await prisma.postulacion.delete({ where: { id } })
   return { message: 'Postulación retirada' }
 }
+
+/**
+ * Recalcula el match score de todas las postulaciones de un candidato
+ * y genera citaciones automáticas si alcanza el 93%
+ */
+export const recalcularMatchPostulaciones = async (candidatoId: number) => {
+  const postulaciones = await prisma.postulacion.findMany({
+    where: { candidatoId, estado: { in: ['PENDIENTE', 'EN_REVISION'] } },
+    include: { 
+      vacante: { include: { empresa: true } },
+      candidato: { include: { usuario: { select: { email: true } } } }
+    }
+  })
+
+  const resultados = []
+
+  for (const postulacion of postulaciones) {
+    const nuevoMatch = await calcularMatchConVacante(candidatoId, postulacion.vacanteId)
+    
+    await prisma.postulacion.update({
+      where: { id: postulacion.id },
+      data: { matchScore: nuevoMatch }
+    })
+
+    // Si alcanza el 93% y no estaba en ENTREVISTA, generar citación automática
+    if (nuevoMatch >= UMBRAL_AUTO && postulacion.estado !== 'ENTREVISTA') {
+      await prisma.postulacion.update({
+        where: { id: postulacion.id },
+        data: { estado: 'ENTREVISTA' }
+      })
+
+      // Buscar o crear entrevista grupal
+      let entrevista = await prisma.entrevistaGrupal.findFirst({
+        where: {
+          vacanteId: postulacion.vacanteId,
+          estado:    'PROGRAMADA',
+        },
+        include: { _count: { select: { invitaciones: true } } },
+        orderBy: { fecha: 'asc' },
+      })
+
+      if (!entrevista || (entrevista as any)._count.invitaciones >= MAX_CANDIDATOS) {
+        const fecha = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        entrevista = await prisma.entrevistaGrupal.create({
+          data: {
+            vacanteId:     postulacion.vacanteId,
+            fecha,
+            modalidad:     'PRESENCIAL',
+            maxCandidatos: MAX_CANDIDATOS,
+          },
+          include: { _count: { select: { invitaciones: true } } },
+        })
+      }
+
+      const expiresAt = new Date(entrevista.fecha.getTime() - HORAS_CONFIRMAR * 60 * 60 * 1000)
+
+      // Verificar si ya tiene invitación
+      const yaInvitado = await prisma.invitacionEntrevista.findFirst({
+        where: { entrevistaId: entrevista.id, candidatoId }
+      })
+
+      if (!yaInvitado) {
+        const invitacion = await prisma.invitacionEntrevista.create({
+          data: { entrevistaId: entrevista.id, candidatoId, expiresAt },
+        })
+
+        // Enviar email
+        const base = (process.env.FRONTEND_URL ?? '').replace(/\/$/, '')
+        const fechaStr = entrevista.fecha.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+        const horaStr = entrevista.fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+
+        const mail = emailEntrevista({
+          nombre: `${postulacion.candidato.nombre} ${postulacion.candidato.apellido}`.trim(),
+          vacante: postulacion.vacante.titulo,
+          empresa: postulacion.vacante.empresa.nombre,
+          fecha: fechaStr,
+          hora: horaStr,
+          modalidad: entrevista.modalidad,
+          enlace: entrevista.enlace ?? undefined,
+          direccion: entrevista.direccion ?? undefined,
+          confirmUrl: `${base}/entrevistas/confirmar/${invitacion.tokenConfirm}`,
+          expiresHoras: HORAS_CONFIRMAR,
+        })
+
+        await transporter.sendMail({ 
+          from: process.env.MAIL_FROM, 
+          to: postulacion.candidato.usuario.email, 
+          ...mail 
+        }).catch(console.error)
+
+        resultados.push({
+          vacanteId: postulacion.vacanteId,
+          matchAnterior: postulacion.matchScore,
+          matchNuevo: nuevoMatch,
+          citacionGenerada: true
+        })
+      }
+    } else {
+      resultados.push({
+        vacanteId: postulacion.vacanteId,
+        matchAnterior: postulacion.matchScore,
+        matchNuevo: nuevoMatch,
+        citacionGenerada: false
+      })
+    }
+  }
+
+  return resultados
+}

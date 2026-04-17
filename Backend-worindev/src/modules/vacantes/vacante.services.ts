@@ -6,15 +6,26 @@ const VacanteSchema = z.object({
   empresaId:      z.number().int().positive(),
   titulo:         z.string().trim().min(3).max(150),
   descripcion:    z.string().trim().min(10).max(3000),
-  requisitos:     z.string().trim().max(2000).optional(),
-  habilidades:    z.array(z.string().trim()).max(20).default([]),
-  ciudad:         z.string().trim().max(100).optional(),
-  modalidad:      z.enum(['PRESENCIAL', 'REMOTO', 'HIBRIDO']).default('PRESENCIAL'),
-  tipoContrato:   z.enum(['INDEFINIDO', 'FIJO', 'PRESTACION', 'PRACTICAS', 'TEMPORAL']).default('INDEFINIDO'),
-  salarioMin:     z.number().int().min(0).optional(),
-  salarioMax:     z.number().int().min(0).optional(),
-  nivelEducacion: z.enum(['BACHILLER','TECNICO','TECNOLOGO','PROFESIONAL','ESPECIALIZACION','MAESTRIA','DOCTORADO']).optional(),
-  anosExperiencia:z.number().int().min(0).max(30).default(0),
+  requisitos:     z.string().trim().min(10).max(2000),
+  habilidades:    z.array(z.string().trim()).min(1, 'Debe agregar al menos una habilidad').max(20),
+  ciudad:         z.string().trim().min(2).max(100),
+  modalidad:      z.enum(['PRESENCIAL', 'REMOTO', 'HIBRIDO']),
+  tipoContrato:   z.enum(['INDEFINIDO', 'FIJO', 'PRESTACION', 'PRACTICAS', 'TEMPORAL']),
+  salarioMin:     z.number().int().min(0),
+  salarioMax:     z.number().int().min(0),
+  nivelEducacion: z.enum(['BACHILLER','TECNICO','TECNOLOGO','PROFESIONAL','ESPECIALIZACION','MAESTRIA','DOCTORADO']),
+  anosExperiencia:z.number().int().min(0).max(30),
+  // Requerimientos de tests
+  requiereTestHardSkill:   z.boolean().default(false),
+  puntajeMinHardSkill:     z.number().int().min(0).max(100).optional(),
+  requiereTestSoftSkill:   z.boolean().default(false),
+  puntajeMinSoftSkill:     z.number().int().min(0).max(100).optional(),
+  requiereTestPsicometria: z.boolean().default(false),
+  puntajeMinPsicometria:   z.number().int().min(0).max(100).optional(),
+  requiereTestLogistica:   z.boolean().default(false),
+  puntajeMinLogistica:     z.number().int().min(0).max(100).optional(),
+  requiereReferencias:     z.boolean().default(false),
+  minimoReferencias:       z.number().int().min(0).max(10).optional(),
 })
 
 const include = {
@@ -23,20 +34,38 @@ const include = {
 }
 
 export const listarVacantes = async (query: any, soloActivas: boolean) => {
-  const { buscar, ciudad, modalidad, empresaId, habilidad } = query
+  const { buscar, ciudad, modalidad, empresaId, habilidad, page = 1, limit = 20 } = query
+  const skip = (Number(page) - 1) * Number(limit)
 
-  return prisma.vacante.findMany({
-    where: {
-      ...(soloActivas ? { estado: 'ACTIVA' } : {}),
-      ...(buscar    ? { OR: [{ titulo: { contains: buscar, mode: 'insensitive' } }, { descripcion: { contains: buscar, mode: 'insensitive' } }] } : {}),
-      ...(ciudad    ? { ciudad: { contains: ciudad, mode: 'insensitive' } } : {}),
-      ...(modalidad ? { modalidad: modalidad as any } : {}),
-      ...(empresaId ? { empresaId: Number(empresaId) } : {}),
-      ...(habilidad ? { habilidades: { has: habilidad } } : {}),
-    },
-    include,
-    orderBy: { createdAt: 'desc' },
-  })
+  const where = {
+    ...(soloActivas ? { estado: 'ACTIVA' } : {}),
+    ...(buscar    ? { OR: [{ titulo: { contains: buscar, mode: 'insensitive' } }, { descripcion: { contains: buscar, mode: 'insensitive' } }] } : {}),
+    ...(ciudad    ? { ciudad: { contains: ciudad, mode: 'insensitive' } } : {}),
+    ...(modalidad ? { modalidad: modalidad as any } : {}),
+    ...(empresaId ? { empresaId: Number(empresaId) } : {}),
+    ...(habilidad ? { habilidades: { has: habilidad } } : {}),
+  }
+
+  const [vacantes, total] = await Promise.all([
+    prisma.vacante.findMany({
+      where,
+      include,
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: Number(limit),
+    }),
+    prisma.vacante.count({ where })
+  ])
+
+  return {
+    vacantes,
+    pagination: {
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      totalPages: Math.ceil(total / Number(limit))
+    }
+  }
 }
 
 export const obtenerVacante = async (id: number) => {
@@ -75,7 +104,12 @@ export const actualizarVacante = async (id: number, data: any) => {
 
   const {
     titulo, descripcion, requisitos, habilidades, ciudad, modalidad,
-    tipoContrato, salarioMin, salarioMax, nivelEducacion, anosExperiencia
+    tipoContrato, salarioMin, salarioMax, nivelEducacion, anosExperiencia,
+    requiereTestHardSkill, puntajeMinHardSkill,
+    requiereTestSoftSkill, puntajeMinSoftSkill,
+    requiereTestPsicometria, puntajeMinPsicometria,
+    requiereTestLogistica, puntajeMinLogistica,
+    requiereReferencias, minimoReferencias
   } = data
 
   const vacante = await prisma.vacante.update({
@@ -92,6 +126,16 @@ export const actualizarVacante = async (id: number, data: any) => {
       ...(salarioMax      !== undefined && { salarioMax: Number(salarioMax) }),
       ...(nivelEducacion  !== undefined && { nivelEducacion }),
       ...(anosExperiencia !== undefined && { anosExperiencia: Number(anosExperiencia) }),
+      ...(requiereTestHardSkill   !== undefined && { requiereTestHardSkill }),
+      ...(puntajeMinHardSkill     !== undefined && { puntajeMinHardSkill: puntajeMinHardSkill ? Number(puntajeMinHardSkill) : null }),
+      ...(requiereTestSoftSkill   !== undefined && { requiereTestSoftSkill }),
+      ...(puntajeMinSoftSkill     !== undefined && { puntajeMinSoftSkill: puntajeMinSoftSkill ? Number(puntajeMinSoftSkill) : null }),
+      ...(requiereTestPsicometria !== undefined && { requiereTestPsicometria }),
+      ...(puntajeMinPsicometria   !== undefined && { puntajeMinPsicometria: puntajeMinPsicometria ? Number(puntajeMinPsicometria) : null }),
+      ...(requiereTestLogistica   !== undefined && { requiereTestLogistica }),
+      ...(puntajeMinLogistica     !== undefined && { puntajeMinLogistica: puntajeMinLogistica ? Number(puntajeMinLogistica) : null }),
+      ...(requiereReferencias     !== undefined && { requiereReferencias }),
+      ...(minimoReferencias       !== undefined && { minimoReferencias: minimoReferencias ? Number(minimoReferencias) : null }),
     },
     include,
   })

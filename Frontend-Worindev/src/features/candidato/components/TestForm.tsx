@@ -20,7 +20,7 @@ interface Test {
 
 interface Props {
   test: Test;
-  onComplete: (respuestas: any[], puntaje: number) => void;
+  onComplete: (respuestas: any[]) => void;
   onCancel: () => void;
 }
 
@@ -77,15 +77,12 @@ export const TestForm: React.FC<Props> = ({ test, onComplete, onCancel }) => {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('wrd_token');
-      // Calcular puntaje (simplificado: 100 si todas respondidas)
-      const puntaje = 100;
       const respuestasArray = test.preguntas.map(p => ({
         preguntaId: p.id,
         respuesta: respuestas[p.id],
       }));
 
-      onComplete(respuestasArray, puntaje);
+      onComplete(respuestasArray);
     } catch (error) {
       toast.error('Error al enviar respuestas');
     } finally {

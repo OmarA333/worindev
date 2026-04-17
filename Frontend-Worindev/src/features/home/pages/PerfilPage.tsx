@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/shared/contexts/AuthContext';
 import { UserCircle, Phone, MapPin, Edit3, Save, X, Briefcase, FileText, Link as LinkIcon, Award } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -7,20 +7,28 @@ interface Props { onNavigate: (path: string) => void; }
 
 interface Perfil {
   nombre: string;
-  apellido: string;
+  apellido?: string;
   telefono?: string;
   ciudad?: string;
-  departamento?: string;
   foto?: string;
   nivelEducacion?: string;
   tituloObtenido?: string;
-  anosExperiencia: number;
+  anosExperiencia?: string;
   pretensionSalarial?: number;
   disponibilidad?: string;
   modalidadPreferida?: string;
   resumen?: string;
   linkedinUrl?: string;
   githubUrl?: string;
+  // Campos de empresa
+  rut?: string;
+  sector?: string;
+  tamano?: string;
+  descripcion?: string;
+  logoUrl?: string;
+  sitioWeb?: string;
+  cultura?: string;
+  verificada?: boolean;
 }
 
 const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3003';
@@ -36,16 +44,24 @@ export const PerfilPage: React.FC<Props> = () => {
     apellido: '',
     telefono: '',
     ciudad: '',
-    departamento: '',
     nivelEducacion: '',
     tituloObtenido: '',
-    anosExperiencia: 0,
+    anosExperiencia: '',
     pretensionSalarial: undefined,
     disponibilidad: '',
     modalidadPreferida: '',
     resumen: '',
     linkedinUrl: '',
     githubUrl: '',
+    // Campos de empresa
+    rut: '',
+    sector: '',
+    tamano: '',
+    descripcion: '',
+    logoUrl: '',
+    sitioWeb: '',
+    cultura: '',
+    verificada: false,
   });
 
   useEffect(() => {
@@ -55,32 +71,75 @@ export const PerfilPage: React.FC<Props> = () => {
   const cargarPerfil = async () => {
     try {
       const token = localStorage.getItem('wrd_token');
+      
+      // Si es ADMIN, mostrar perfil básico del usuario
+      if (user?.role === 'ADMIN') {
+        setPerfil({
+          nombre: 'Administrador',
+          apellido: 'Sistema',
+          resumen: 'Usuario administrador del sistema Worindev',
+        });
+        setForm({
+          nombre: 'Administrador',
+          apellido: 'Sistema',
+          resumen: 'Usuario administrador del sistema Worindev',
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Si es EMPRESA, cargar perfil de empresa
+      if (user?.role === 'EMPRESA') {
+        const res = await fetch(`${API}/api/empresas/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) throw new Error('Error al cargar perfil de empresa');
+        const data = await res.json();
+        
+        setPerfil(data);
+        setForm({
+          nombre: data.nombre || '',
+          rut: data.rut || '',
+          sector: data.sector || '',
+          tamano: data.tamano || '',
+          ciudad: data.ciudad || '',
+          descripcion: data.descripcion || '',
+          logoUrl: data.logoUrl || '',
+          sitioWeb: data.sitioWeb || '',
+          cultura: data.cultura || '',
+          verificada: data.verificada || false,
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Si es CANDIDATO, cargar perfil de candidato
       const res = await fetch(`${API}/api/candidatos/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Error al cargar perfil');
       const data = await res.json();
       
-      // Calcular años de experiencia total
+      // Calcular años de experiencia total desde experiencias
       let anosExperienciaTotal = 0;
       if (data.experiencias && data.experiencias.length > 0) {
         data.experiencias.forEach((exp: any) => {
           const inicio = new Date(exp.fechaInicio);
           const fin = exp.actual ? new Date() : new Date(exp.fechaFin);
           const anos = (fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-          anosExperienciaTotal += anos;
+          anosExperienciaTotal += Math.max(0, anos);
         });
       }
       
-      // Obtener nivel más alto de educación
+      // Obtener nivel más alto de educación desde educaciones
       const nivelesOrden: Record<string, number> = {
-        'BACHILLER': 1,
-        'TECNICO': 2,
-        'TECNOLOGO': 3,
-        'PROFESIONAL': 4,
-        'ESPECIALIZACION': 5,
-        'MAESTRIA': 6,
-        'DOCTORADO': 7,
+        'Bachiller': 1,
+        'TÃ©cnico': 2,
+        'TecnÃ³logo': 3,
+        'Profesional': 4,
+        'EspecializaciÃ³n': 5,
+        'MaestrÃ­a': 6,
+        'Doctorado': 7,
       };
       
       let nivelMasAlto = '';
@@ -95,7 +154,7 @@ export const PerfilPage: React.FC<Props> = () => {
         });
       }
       
-      // Obtener títulos obtenidos
+      // Obtener títulos obtenidos desde educaciones
       const titulos = data.educaciones
         ?.map((edu: any) => edu.titulo)
         .filter((t: string) => t)
@@ -107,10 +166,9 @@ export const PerfilPage: React.FC<Props> = () => {
         apellido: data.apellido || '',
         telefono: data.telefono || '',
         ciudad: data.ciudad || '',
-        departamento: data.departamento || '',
         nivelEducacion: nivelMasAlto || data.nivelEducacion || '',
         tituloObtenido: titulos || data.tituloObtenido || '',
-        anosExperiencia: Math.round(anosExperienciaTotal * 10) / 10 || data.anosExperiencia || 0,
+        anosExperiencia: anosExperienciaTotal > 0 ? anosExperienciaTotal.toFixed(1) : (data.anosExperiencia ? String(data.anosExperiencia) : '0'),
         pretensionSalarial: data.pretensionSalarial || undefined,
         disponibilidad: data.disponibilidad || '',
         modalidadPreferida: data.modalidadPreferida || '',
@@ -126,14 +184,31 @@ export const PerfilPage: React.FC<Props> = () => {
   };
 
   const handleSave = async () => {
-    if (!form.nombre || !form.apellido) {
+    // Los administradores no pueden editar su perfil desde aquí
+    if (user?.role === 'ADMIN') {
+      toast.error('Los administradores no pueden editar su perfil desde esta página');
+      setEditing(false);
+      return;
+    }
+    
+    if (!form.nombre) {
+      toast.error('El nombre es requerido');
+      return;
+    }
+    
+    if (user?.role === 'CANDIDATO' && !form.apellido) {
       toast.error('Nombre y apellido son requeridos');
       return;
     }
+    
     setSaving(true);
     try {
       const token = localStorage.getItem('wrd_token');
-      const res = await fetch(`${API}/api/candidatos/${perfil?.id}`, {
+      const endpoint = user?.role === 'EMPRESA' 
+        ? `${API}/api/empresas/${(perfil as any)?.id}`
+        : `${API}/api/candidatos/${(perfil as any)?.id}`;
+      
+      const res = await fetch(endpoint, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -165,25 +240,29 @@ export const PerfilPage: React.FC<Props> = () => {
 
   if (!perfil) return null;
 
-  const initials = `${form.nombre.charAt(0)}${form.apellido.charAt(0)}`.toUpperCase();
+  const initials = user?.role === 'EMPRESA' 
+    ? form.nombre.substring(0, 2).toUpperCase()
+    : `${form.nombre?.charAt(0) || ''}${form.apellido?.charAt(0) || ''}`.toUpperCase();
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-display font-bold text-ink-900">Mi Perfil</h1>
-        {!editing ? (
-          <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white hover:bg-primary-600 text-sm font-semibold transition-all">
-            <Edit3 size={16} /> Editar
-          </button>
-        ) : (
-          <div className="flex gap-2">
-            <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 text-sm font-semibold transition-all disabled:opacity-50">
-              <Save size={16} /> Guardar
+        {user?.role !== 'ADMIN' && (
+          !editing ? (
+            <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary-500 text-white hover:bg-primary-600 text-sm font-semibold transition-all">
+              <Edit3 size={16} /> Editar
             </button>
-            <button onClick={() => { setEditing(false); setForm(perfil); }} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-border text-ink-700 hover:bg-surface-border/80 text-sm transition-all">
-              <X size={16} /> Cancelar
-            </button>
-          </div>
+          ) : (
+            <div className="flex gap-2">
+              <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 text-sm font-semibold transition-all disabled:opacity-50">
+                <Save size={16} /> Guardar
+              </button>
+              <button onClick={() => { setEditing(false); setForm(perfil!); }} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-border text-ink-700 hover:bg-surface-border/80 text-sm transition-all">
+                <X size={16} /> Cancelar
+              </button>
+            </div>
+          )
         )}
       </div>
 
@@ -194,180 +273,289 @@ export const PerfilPage: React.FC<Props> = () => {
             {initials}
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-ink-900">{form.nombre} {form.apellido}</h2>
+            <h2 className="text-2xl font-bold text-ink-900">
+              {user?.role === 'EMPRESA' ? form.nombre : `${form.nombre} ${form.apellido || ''}`}
+            </h2>
             <p className="text-ink-500 text-sm">{user?.email}</p>
-            <span className="mt-2 inline-block px-3 py-1 rounded-full bg-primary-100 text-primary-700 text-xs font-semibold border border-primary-200">
-              {user?.role}
-            </span>
+            <div className="flex items-center gap-2 mt-2">
+              <span className="inline-block px-3 py-1 rounded-full bg-primary-100 text-primary-700 text-xs font-semibold border border-primary-200">
+                {user?.role}
+              </span>
+              {user?.role === 'EMPRESA' && form.verificada && (
+                <span className="inline-block px-3 py-1 rounded-full bg-accent-100 text-accent-700 text-xs font-semibold border border-accent-200">
+                  ✓ Verificada
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Información Personal */}
-      <div className="card-light p-6">
-        <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
-          <UserCircle size={18} /> Información Personal
-        </h3>
-        <div className="grid md:grid-cols-2 gap-4">
-          {[
-            { key: 'nombre', label: 'Nombre', type: 'text', required: true },
-            { key: 'apellido', label: 'Apellido', type: 'text', required: true },
-            { key: 'telefono', label: 'Teléfono', type: 'tel', icon: Phone },
-            { key: 'ciudad', label: 'Ciudad', type: 'text', icon: MapPin },
-            { key: 'departamento', label: 'Departamento', type: 'text' },
-            { key: 'disponibilidad', label: 'Disponibilidad', type: 'select', options: ['Inmediata', '15 días', '1 mes', 'Más de 1 mes'] },
-          ].map(f => (
-            <div key={f.key}>
-              <label className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-1.5 block">
-                {f.label} {f.required && <span className="text-red-500">*</span>}
-              </label>
-              {editing ? (
-                f.type === 'select' ? (
-                  <select
-                    value={(form as any)[f.key] || ''}
-                    onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                    className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500">
-                    <option value="">Selecciona...</option>
-                    {(f.options || []).map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type={f.type}
-                    value={(form as any)[f.key] || ''}
-                    onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                    className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
-                  />
-                )
-              ) : (
-                <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
-                  {(form as any)[f.key] || '—'}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Información Profesional */}
-      <div className="card-light p-6">
-        <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
-          <Briefcase size={18} /> Información Profesional
-        </h3>
-        <div className="grid md:grid-cols-2 gap-4">
-          {[
-            { key: 'anosExperiencia', label: 'Años de Experiencia', type: 'number', readOnly: true, hint: 'Calculado desde tu currículum' },
-            { key: 'pretensionSalarial', label: 'Pretensión Salarial', type: 'number' },
-            { key: 'nivelEducacion', label: 'Nivel de Educación', type: 'select', options: ['BACHILLER', 'TECNICO', 'TECNOLOGO', 'PROFESIONAL', 'ESPECIALIZACION', 'MAESTRIA', 'DOCTORADO'], readOnly: true, hint: 'Nivel más alto de tu currículum' },
-            { key: 'modalidadPreferida', label: 'Modalidad Preferida', type: 'select', options: ['PRESENCIAL', 'REMOTO', 'HIBRIDO'] },
-          ].map(f => (
-            <div key={f.key}>
-              <label className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-1.5 block">
-                {f.label}
-                {(f as any).hint && <span className="text-xs font-normal text-ink-400 ml-1">({(f as any).hint})</span>}
-              </label>
-              {editing && !(f as any).readOnly ? (
-                f.type === 'select' ? (
-                  <select
-                    value={(form as any)[f.key] || ''}
-                    onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                    className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500">
-                    <option value="">Selecciona...</option>
-                    {(f.options || []).map(opt => (
-                      <option key={opt} value={opt}>{opt}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    type={f.type}
-                    value={(form as any)[f.key] || ''}
-                    onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                    className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
-                  />
-                )
-              ) : (
-                <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
-                  {f.type === 'number' && (form as any)[f.key] ? `${(form as any)[f.key]} ${f.key === 'anosExperiencia' ? 'años' : ''}` : (form as any)[f.key] || '—'}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Resumen Profesional */}
-      <div className="card-light p-6">
-        <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
-          <FileText size={18} /> Resumen Profesional
-        </h3>
-        {editing ? (
-          <textarea
-            value={form.resumen || ''}
-            onChange={e => setForm(p => ({ ...p, resumen: e.target.value }))}
-            placeholder="Cuéntanos sobre ti, tu experiencia y tus objetivos profesionales..."
-            className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
-            rows={5}
-          />
-        ) : (
-          <p className="text-ink-900 text-sm py-3 px-3 bg-surface-bg rounded-lg border border-surface-border whitespace-pre-wrap">
-            {form.resumen || '—'}
-          </p>
-        )}
-      </div>
-
-      {/* Enlaces */}
-      <div className="card-light p-6">
-        <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
-          <LinkIcon size={18} /> Enlaces Profesionales
-        </h3>
-        <div className="grid md:grid-cols-2 gap-4">
-          {[
-            { key: 'linkedinUrl', label: 'LinkedIn', placeholder: 'https://linkedin.com/in/...' },
-            { key: 'githubUrl', label: 'GitHub', placeholder: 'https://github.com/...' },
-          ].map(f => (
-            <div key={f.key}>
-              <label className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-1.5 block">
-                {f.label}
-              </label>
-              {editing ? (
-                <input
-                  type="url"
-                  value={(form as any)[f.key] || ''}
-                  onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                  placeholder={f.placeholder}
-                  className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
-                />
-              ) : (
-                <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
-                  {(form as any)[f.key] ? (
-                    <a href={(form as any)[f.key]} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
-                      {(form as any)[f.key]}
-                    </a>
+      {/* Información según rol */}
+      {user?.role === 'EMPRESA' ? (
+        <>
+          {/* Información de Empresa */}
+          <div className="card-light p-6">
+            <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
+              <UserCircle size={18} /> Información de la Empresa
+            </h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              {[
+                { key: 'nombre', label: 'Nombre de la Empresa', type: 'text', required: true },
+                { key: 'rut', label: 'RUT', type: 'text' },
+                { key: 'sector', label: 'Sector', type: 'text' },
+                { key: 'tamano', label: 'Tamaño', type: 'select', options: ['1-10', '11-50', '51-200', '200+'] },
+                { key: 'ciudad', label: 'Ciudad', type: 'text', icon: MapPin },
+                { key: 'sitioWeb', label: 'Sitio Web', type: 'url' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className="text-xs font-semibold text-ink-500 tracking-wider mb-1.5 block">
+                    {f.label} {f.required && <span className="text-red-500">*</span>}
+                  </label>
+                  {editing ? (
+                    f.type === 'select' ? (
+                      <select
+                        value={(form as any)[f.key] || ''}
+                        onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                        className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500">
+                        <option value="">Selecciona...</option>
+                        {(f.options || []).map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={f.type}
+                        value={(form as any)[f.key] || ''}
+                        onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                        className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
+                      />
+                    )
                   ) : (
-                    '—'
+                    <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
+                      {(form as any)[f.key] || '—'}
+                    </p>
                   )}
-                </p>
-              )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      </div>
+          </div>
 
-      {/* Título Obtenido */}
-      <div className="card-light p-6">
-        <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
-          <Award size={18} /> Títulos Obtenidos
-        </h3>
-        <div>
-          <label className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-1.5 block">
-            Títulos <span className="text-xs font-normal text-ink-400">(Desde tu currículum)</span>
-          </label>
-          <p className="text-ink-900 text-sm py-3 px-3 bg-surface-bg rounded-lg border border-surface-border whitespace-pre-wrap">
-            {form.tituloObtenido || '—'}
-          </p>
+          {/* Descripción */}
+          <div className="card-light p-6">
+            <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
+              <FileText size={18} /> Descripción de la Empresa
+            </h3>
+            {editing ? (
+              <textarea
+                value={form.descripcion || ''}
+                onChange={e => setForm(p => ({ ...p, descripcion: e.target.value }))}
+                placeholder="Describe tu empresa, su misión, visión y valores..."
+                className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
+                rows={5}
+              />
+            ) : (
+              <p className="text-ink-900 text-sm py-3 px-3 bg-surface-bg rounded-lg border border-surface-border whitespace-pre-wrap">
+                {form.descripcion || '—'}
+              </p>
+            )}
+          </div>
+
+          {/* Cultura */}
+          <div className="card-light p-6">
+            <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
+              <Award size={18} /> Cultura Organizacional
+            </h3>
+            {editing ? (
+              <textarea
+                value={form.cultura || ''}
+                onChange={e => setForm(p => ({ ...p, cultura: e.target.value }))}
+                placeholder="Describe la cultura de tu empresa, ambiente laboral, beneficios..."
+                className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
+                rows={4}
+              />
+            ) : (
+              <p className="text-ink-900 text-sm py-3 px-3 bg-surface-bg rounded-lg border border-surface-border whitespace-pre-wrap">
+                {form.cultura || '—'}
+              </p>
+            )}
+          </div>
+        </>
+      ) : user?.role === 'CANDIDATO' ? (
+        <>
+          {/* Información Personal de Candidato */}
+          <div className="card-light p-6">
+            <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
+              <UserCircle size={18} /> Información Personal
+            </h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              {[
+                { key: 'nombre', label: 'Nombre', type: 'text', required: true },
+                { key: 'apellido', label: 'Apellido', type: 'text', required: true },
+                { key: 'telefono', label: 'Teléfono', type: 'tel', icon: Phone },
+                { key: 'ciudad', label: 'Ciudad', type: 'text', icon: MapPin },
+                { key: 'disponibilidad', label: 'Disponibilidad', type: 'select', options: ['Inmediata', '15 días', '1 mes', 'Más de 1 mes'] },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className="text-xs font-semibold text-ink-500 tracking-wider mb-1.5 block">
+                    {f.label} {f.required && <span className="text-red-500">*</span>}
+                  </label>
+                  {editing ? (
+                    f.type === 'select' ? (
+                      <select
+                        value={(form as any)[f.key] || ''}
+                        onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                        className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500">
+                        <option value="">Selecciona...</option>
+                        {(f.options || []).map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={f.type}
+                        value={(form as any)[f.key] || ''}
+                        onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                        className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
+                      />
+                    )
+                  ) : (
+                    <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
+                      {(form as any)[f.key] || '—'}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Información Profesional */}
+          <div className="card-light p-6">
+            <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
+              <Briefcase size={18} /> Información Profesional
+            </h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              {[
+                { key: 'anosExperiencia', label: 'Años de Experiencia', type: 'text' },
+                { key: 'pretensionSalarial', label: 'Pretensión Salarial', type: 'number' },
+                { key: 'nivelEducacion', label: 'Nivel de Educación', type: 'text' },
+                { key: 'modalidadPreferida', label: 'Modalidad Preferida', type: 'select', options: ['Presencial', 'Remoto', 'Híbrido'] },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className="text-xs font-semibold text-ink-500 tracking-wider mb-1.5 block">
+                    {f.label}
+                  </label>
+                  {editing ? (
+                    f.type === 'select' ? (
+                      <select
+                        value={(form as any)[f.key] || ''}
+                        onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                        className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500">
+                        <option value="">Selecciona...</option>
+                        {(f.options || []).map(opt => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={f.type}
+                        value={(form as any)[f.key] || ''}
+                        onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                        className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
+                      />
+                    )
+                  ) : (
+                    <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
+                      {(form as any)[f.key] || '—'}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Resumen Profesional */}
+          <div className="card-light p-6">
+            <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
+              <FileText size={18} /> Resumen Profesional
+            </h3>
+            {editing ? (
+              <textarea
+                value={form.resumen || ''}
+                onChange={e => setForm(p => ({ ...p, resumen: e.target.value }))}
+                placeholder="Cuéntanos sobre ti, tu experiencia y tus objetivos profesionales..."
+                className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
+                rows={5}
+              />
+            ) : (
+              <p className="text-ink-900 text-sm py-3 px-3 bg-surface-bg rounded-lg border border-surface-border whitespace-pre-wrap">
+                {form.resumen || '—'}
+              </p>
+            )}
+          </div>
+
+          {/* Enlaces */}
+          <div className="card-light p-6">
+            <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
+              <LinkIcon size={18} /> Enlaces Profesionales
+            </h3>
+            <div className="grid md:grid-cols-2 gap-4">
+              {[
+                { key: 'linkedinUrl', label: 'LinkedIn', placeholder: 'https://linkedin.com/in/...' },
+                { key: 'githubUrl', label: 'GitHub', placeholder: 'https://github.com/...' },
+              ].map(f => (
+                <div key={f.key}>
+                  <label className="text-xs font-semibold text-ink-500 tracking-wider mb-1.5 block">
+                    {f.label}
+                  </label>
+                  {editing ? (
+                    <input
+                      type="url"
+                      value={(form as any)[f.key] || ''}
+                      onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                      placeholder={f.placeholder}
+                      className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
+                    />
+                  ) : (
+                    <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
+                      {(form as any)[f.key] ? (
+                        <a href={(form as any)[f.key]} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                          {(form as any)[f.key]}
+                        </a>
+                      ) : (
+                        '—'
+                      )}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Título Obtenido */}
+          <div className="card-light p-6">
+            <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
+              <Award size={18} /> Títulos Obtenidos
+            </h3>
+            <div>
+              <label className="text-xs font-semibold text-ink-500 tracking-wider mb-1.5 block">
+                Títulos <span className="text-xs font-normal text-ink-400">(Desde tu currículum)</span>
+              </label>
+              <p className="text-ink-900 text-sm py-3 px-3 bg-surface-bg rounded-lg border border-surface-border whitespace-pre-wrap">
+                {form.tituloObtenido || '—'}
+              </p>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* Perfil de Administrador */
+        <div className="card-light p-6">
+          <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">
+            <UserCircle size={18} /> Información del Administrador
+          </h3>
+          <p className="text-ink-700 text-sm">{form.resumen}</p>
         </div>
-      </div>
+      )}
     </div>
   );
 };

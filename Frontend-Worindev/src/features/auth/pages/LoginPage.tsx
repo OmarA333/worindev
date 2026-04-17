@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useAuth } from '@/shared/contexts/AuthContext';
 import { LogoLight } from '@/shared/components/Logo';
 import { Eye, EyeOff, Mail, Lock, ArrowRight, Building2, User, Home } from 'lucide-react';
@@ -79,7 +79,7 @@ export const LoginPage: React.FC<Props> = ({ onNavigate }) => {
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email */}
               <div>
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">
+                <label className="text-xs font-semibold text-slate-400 tracking-wider mb-2 block">
                   Correo electrónico
                 </label>
                 <div className="relative">
@@ -96,7 +96,7 @@ export const LoginPage: React.FC<Props> = ({ onNavigate }) => {
 
               {/* Password */}
               <div>
-                <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 block">
+                <label className="text-xs font-semibold text-slate-400 tracking-wider mb-2 block">
                   Contraseña
                 </label>
                 <div className="relative">

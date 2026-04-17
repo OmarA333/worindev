@@ -3,20 +3,20 @@ import prisma from '../../config/prisma'
 /**
  * Algoritmo de Matching Worindev
  * 
- * Pesos según el documento:
+ * Pesos:
  *   Hard Skills (títulos, certs, experiencia): 40%
- *   Soft Skills & Psicometría:                 20%
- *   Logística (ubicación, horario, salario):   20%
- *   Referencias verificadas:                   13%
- *   Perfil completo (bonus):                    7%
+ *   Soft Skills & Psicometría:                 25%
+ *   Logística (ubicación, horario, salario):   25%
+ *   Perfil completo (bonus):                   10%
+ * 
+ * Referencias: verificadas por la empresa durante/después de la entrevista (no afectan el score previo)
  */
 
 const PESOS = {
-  hardSkills:  0.40,
-  softSkills:  0.20,
-  logistica:   0.20,
-  referencias: 0.13,
-  perfil:      0.07,
+  hardSkills: 0.40,
+  softSkills: 0.25,
+  logistica:  0.25,
+  perfil:     0.10,
 }
 
 export const calcularMatchScore = async (candidatoId: number): Promise<number> => {
@@ -76,11 +76,7 @@ export const calcularMatchScore = async (candidatoId: number): Promise<number> =
     if (candidato.modalidadPreferida) logisScore += 20
   }
 
-  // ── 4. REFERENCIAS (13%) ──────────────────────────────────────────────────
-  const refsVerificadas = candidato.referencias.filter(r => r.verificado).length
-  const refScore = Math.min(100, refsVerificadas * 33) // 3 refs = 100%
-
-  // ── 5. PERFIL COMPLETO (7%) ───────────────────────────────────────────────
+  // ── 4. PERFIL COMPLETO (10%) ──────────────────────────────────────────────
   let perfilScore = 0
   if (candidato.foto)        perfilScore += 20
   if (candidato.resumen)     perfilScore += 20
@@ -93,7 +89,6 @@ export const calcularMatchScore = async (candidatoId: number): Promise<number> =
     hardFinal   * PESOS.hardSkills +
     softScore   * PESOS.softSkills +
     logisScore  * PESOS.logistica  +
-    refScore    * PESOS.referencias +
     perfilScore * PESOS.perfil
 
   return Math.round(Math.min(100, total) * 10) / 10
@@ -101,13 +96,18 @@ export const calcularMatchScore = async (candidatoId: number): Promise<number> =
 
 /**
  * Calcula el match entre un candidato y una vacante específica
- * Considera además las habilidades requeridas por la vacante
+ * Considera además las habilidades requeridas por la vacante y los requerimientos de tests
  */
 export const calcularMatchConVacante = async (candidatoId: number, vacanteId: number): Promise<number> => {
   const [candidato, vacante] = await Promise.all([
     prisma.candidato.findUnique({
       where: { id: candidatoId },
-      include: { habilidades: true, experiencias: true, educaciones: true, referencias: true, testResultados: { include: { test: true } } }
+      include: { 
+        habilidades: true, 
+        experiencias: true, 
+        educaciones: true, 
+        testResultados: { include: { test: true } } 
+      }
     }),
     prisma.vacante.findUnique({ where: { id: vacanteId } })
   ])
@@ -137,6 +137,49 @@ export const calcularMatchConVacante = async (candidatoId: number, vacanteId: nu
   // Bonus por experiencia
   const bonusExp = candidato.anosExperiencia >= vacante.anosExperiencia ? 5 : -5
 
-  const scoreTotal = Math.min(100, scoreBase + bonusHabilidades + bonusEducacion + bonusExp)
+  // ── VERIFICAR REQUERIMIENTOS DE TESTS ────────────────────────────────────────
+  let penalizacionTests = 0
+  
+  // Test Hard Skills
+  if (vacante.requiereTestHardSkill) {
+    const testHard = candidato.testResultados.find(t => t.test.tipo === 'HARD_SKILL')
+    if (!testHard) {
+      penalizacionTests += 15 // No ha completado el test requerido
+    } else if (vacante.puntajeMinHardSkill && testHard.puntaje < vacante.puntajeMinHardSkill) {
+      penalizacionTests += 10 // No alcanza el puntaje mínimo
+    }
+  }
+
+  // Test Soft Skills
+  if (vacante.requiereTestSoftSkill) {
+    const testSoft = candidato.testResultados.find(t => t.test.tipo === 'SOFT_SKILL')
+    if (!testSoft) {
+      penalizacionTests += 15
+    } else if (vacante.puntajeMinSoftSkill && testSoft.puntaje < vacante.puntajeMinSoftSkill) {
+      penalizacionTests += 10
+    }
+  }
+
+  // Test Psicometría
+  if (vacante.requiereTestPsicometria) {
+    const testPsico = candidato.testResultados.find(t => t.test.tipo === 'PSICOMETRIA')
+    if (!testPsico) {
+      penalizacionTests += 15
+    } else if (vacante.puntajeMinPsicometria && testPsico.puntaje < vacante.puntajeMinPsicometria) {
+      penalizacionTests += 10
+    }
+  }
+
+  // Test Logística
+  if (vacante.requiereTestLogistica) {
+    const testLogis = candidato.testResultados.find(t => t.test.tipo === 'LOGISTICA')
+    if (!testLogis) {
+      penalizacionTests += 15
+    } else if (vacante.puntajeMinLogistica && testLogis.puntaje < vacante.puntajeMinLogistica) {
+      penalizacionTests += 10
+    }
+  }
+
+  const scoreTotal = Math.min(100, scoreBase + bonusHabilidades + bonusEducacion + bonusExp - penalizacionTests)
   return Math.round(scoreTotal * 10) / 10
 }

@@ -37,5 +37,7 @@ router.delete('/:id/educaciones/:eid', requireRole(['ADMIN', 'CANDIDATO']), ctrl
 router.post('/:id/referencias', requireRole(['ADMIN', 'CANDIDATO']), ctrl.agregarReferencia)
 router.put('/:id/referencias/:rid',    requireRole(['ADMIN', 'CANDIDATO']), ctrl.actualizarReferencia)
 router.delete('/:id/referencias/:rid', requireRole(['ADMIN', 'CANDIDATO']), ctrl.eliminarReferencia)
+// La empresa verifica referencias manualmente durante/después de la entrevista
+router.patch('/:id/referencias/:rid/verificar', requireRole(['ADMIN', 'EMPRESA']), ctrl.verificarReferenciaEmpresa)
 
 export default router

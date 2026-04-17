@@ -24,7 +24,7 @@ const MainLayout: React.FC = () => {
   const { isAuthenticated, isLoading, user } = useAuth();
   const [currentPath,      setCurrentPath]      = useState('/');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isPanelOpen,      setIsPanelOpen]      = useState(true);
+  const [isPanelOpen,      setIsPanelOpen]      = useState(true); // Siempre abierto por defecto
 
   // Aplica tema claro cuando el usuario está autenticado
   useEffect(() => {
@@ -83,25 +83,25 @@ const MainLayout: React.FC = () => {
         </button>
       </div>
 
-      {/* Mobile sidebar */}
-      <div className={`fixed inset-0 z-50 lg:hidden transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <Sidebar currentPath={currentPath} onNavigate={p => { setCurrentPath(p); setIsMobileMenuOpen(false); }}
-          isPanelOpen={isPanelOpen} setIsPanelOpen={setIsPanelOpen} />
-      </div>
+      {/* Mobile sidebar overlay */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
+        <>
+          <div className="fixed inset-0 z-40 lg:hidden bg-black/60 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
+          <div className="fixed left-0 top-0 h-screen z-50 lg:hidden">
+            <Sidebar currentPath={currentPath} onNavigate={p => { setCurrentPath(p); setIsMobileMenuOpen(false); }}
+              isPanelOpen={isPanelOpen} setIsPanelOpen={setIsPanelOpen} />
+          </div>
+        </>
       )}
 
-      {/* Desktop sidebar */}
-      <div className="hidden lg:block">
+      {/* Desktop sidebar - SIEMPRE VISIBLE Y DESPLEGADO */}
+      <aside className="fixed left-0 top-0 h-screen z-30 hidden md:block">
         <Sidebar currentPath={currentPath} onNavigate={setCurrentPath}
-          isPanelOpen={isPanelOpen} setIsPanelOpen={setIsPanelOpen} />
-      </div>
+          isPanelOpen={true} setIsPanelOpen={setIsPanelOpen} />
+      </aside>
 
       {/* Main content */}
-      <main className={`flex-1 min-h-screen overflow-y-auto transition-all duration-300
-        pt-14 lg:pt-0
-        ${isPanelOpen ? 'lg:ml-[19rem]' : 'lg:ml-20'}`}>
+      <main className="flex-1 min-h-screen overflow-y-auto pt-14 md:pt-0 md:ml-64">
         {renderContent()}
       </main>
     </div>

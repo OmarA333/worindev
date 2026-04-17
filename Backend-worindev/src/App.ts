@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import compression from 'compression'
 import rateLimit from 'express-rate-limit'
 import path from 'path'
 
@@ -17,8 +18,9 @@ import { notFoundHandler, errorHandler } from './middlewares/errorHandler'
 
 const app = express()
 
-// ─── SEGURIDAD ────────────────────────────────────────────────────────────────
+// ─── SEGURIDAD Y OPTIMIZACIÓN ─────────────────────────────────────────────────
 app.use(helmet())
+app.use(compression()) // Comprime respuestas HTTP (reduce tamaño 60-80%)
 app.use(cors({
   origin:         ['http://localhost:3002', 'http://localhost:3001'],
   methods:        ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],

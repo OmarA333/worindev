@@ -36,6 +36,28 @@ npm run prisma:seed
 npm run dev
 ```
 
+## ⚡ Optimizaciones de Rendimiento
+
+Si el servidor está lento, aplica las optimizaciones:
+
+```bash
+# Windows
+scripts\aplicar-optimizaciones.bat
+
+# Linux/Mac
+chmod +x scripts/aplicar-optimizaciones.sh
+./scripts/aplicar-optimizaciones.sh
+```
+
+**Mejoras incluidas:**
+- ✅ Índices de base de datos (5-10x más rápido)
+- ✅ Paginación en listados
+- ✅ Compresión HTTP (60-80% menos datos)
+- ✅ Cálculo asíncrono de match score
+- ✅ Consultas optimizadas
+
+📖 Ver `SOLUCION-LENTITUD.md` para más detalles.
+
 ## Credenciales seed
 | Rol       | Email                      | Password         |
 |-----------|----------------------------|------------------|

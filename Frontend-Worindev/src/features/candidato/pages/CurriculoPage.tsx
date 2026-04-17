@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit3, Upload, FileText, Phone, MapPin, DollarSign, Briefcase } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -12,7 +12,6 @@ interface Candidato {
   apellido: string;
   telefono?: string;
   ciudad?: string;
-  departamento?: string;
   pretensionSalarial?: number;
   disponibilidad?: string;
   modalidadPreferida?: string;
@@ -123,7 +122,6 @@ const PersonalSection: React.FC<{ candidato: Candidato; onUpdate: () => void }> 
     apellido: candidato.apellido,
     telefono: candidato.telefono || '',
     ciudad: candidato.ciudad || '',
-    departamento: candidato.departamento || '',
     pretensionSalarial: candidato.pretensionSalarial || '',
     disponibilidad: candidato.disponibilidad || '',
     modalidadPreferida: candidato.modalidadPreferida || '',
@@ -180,13 +178,12 @@ const PersonalSection: React.FC<{ candidato: Candidato; onUpdate: () => void }> 
           { key: 'apellido', label: 'Apellido', type: 'text' },
           { key: 'telefono', label: 'Teléfono', type: 'tel', icon: Phone },
           { key: 'ciudad', label: 'Ciudad', type: 'text', icon: MapPin },
-          { key: 'departamento', label: 'Departamento', type: 'text' },
           { key: 'pretensionSalarial', label: 'Sueldo Esperado', type: 'number', icon: DollarSign },
           { key: 'disponibilidad', label: 'Disponibilidad', type: 'select', options: ['Inmediata', '15 días', '1 mes', 'Más de 1 mes'] },
-          { key: 'modalidadPreferida', label: 'Modalidad', type: 'select', options: ['PRESENCIAL', 'REMOTO', 'HIBRIDO'] },
+          { key: 'modalidadPreferida', label: 'Modalidad', type: 'select', options: ['Presencial', 'Remoto', 'HÃ­brido'] },
         ].map(field => (
           <div key={field.key}>
-            <label className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-1.5 block">
+            <label className="text-xs font-semibold text-ink-500 tracking-wider mb-1.5 block">
               {field.label}
             </label>
             {editing ? (
@@ -219,7 +216,7 @@ const PersonalSection: React.FC<{ candidato: Candidato; onUpdate: () => void }> 
 
       {/* CV Upload */}
       <div>
-        <label className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-2 block">
+        <label className="text-xs font-semibold text-ink-500 tracking-wider mb-2 block">
           <FileText size={14} className="inline mr-1" /> Currículum (PDF)
         </label>
         <CVUpload candidatoId={candidato.id} currentCV={candidato.cvUrl} onUpload={onUpdate} />
@@ -353,13 +350,13 @@ const EducacionSection: React.FC<{ candidato: Candidato; onUpdate: () => void }>
           <input type="text" placeholder="Título" value={form.titulo} onChange={e => setForm(p => ({ ...p, titulo: e.target.value }))} className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm" />
           <select value={form.nivel} onChange={e => setForm(p => ({ ...p, nivel: e.target.value }))} className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm">
             <option value="">Nivel</option>
-            <option value="BACHILLER">Bachiller</option>
-            <option value="TECNICO">Técnico</option>
-            <option value="TECNOLOGO">Tecnólogo</option>
-            <option value="PROFESIONAL">Profesional</option>
-            <option value="ESPECIALIZACION">Especialización</option>
-            <option value="MAESTRIA">Maestría</option>
-            <option value="DOCTORADO">Doctorado</option>
+            <option value="Bachiller">Bachiller</option>
+            <option value="Técnico">Técnico</option>
+            <option value="Tecnólogo">Tecnólogo</option>
+            <option value="Profesional">Profesional</option>
+            <option value="Especialización">Especialización</option>
+            <option value="Maestría">Maestría</option>
+            <option value="Doctorado">Doctorado</option>
           </select>
           <div className="grid grid-cols-2 gap-2">
             <div>

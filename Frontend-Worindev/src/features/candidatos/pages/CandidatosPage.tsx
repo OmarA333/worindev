@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Users, MapPin, Star, Search, RefreshCw, ChevronRight, X, Briefcase, GraduationCap, Phone } from 'lucide-react';
+import { Users, MapPin, Star, Search, RefreshCw, X, Briefcase, GraduationCap, Phone, CheckCircle, Circle } from 'lucide-react';
 import { apiFetch } from '@/shared/services/api';
+import toast from 'react-hot-toast';
 
 interface Props { onNavigate: (path: string) => void; }
 
 interface Habilidad { id: number; habilidad: string; nivel: string; }
+interface Referencia { id: number; nombre: string; cargo: string; empresa: string; email: string; telefono: string | null; verificado: boolean; }
 
 interface Candidato {
   id:                 number;
@@ -12,7 +14,6 @@ interface Candidato {
   apellido:           string;
   telefono:           string | null;
   ciudad:             string | null;
-  departamento:       string | null;
   nivelEducacion:     string | null;
   tituloObtenido:     string | null;
   anosExperiencia:    number;
@@ -22,6 +23,7 @@ interface Candidato {
   resumen:            string | null;
   usuario:            { email: string; estado: string };
   habilidades:        Habilidad[];
+  referencias:        Referencia[];
   _count:             { postulaciones: number };
 }
 
@@ -40,17 +42,31 @@ export const CandidatosPage: React.FC<Props> = () => {
   const [error,      setError]      = useState('');
   const [buscar,     setBuscar]     = useState('');
   const [selected,   setSelected]   = useState<Candidato | null>(null);
+  const [loadingDetalle, setLoadingDetalle] = useState(false);
 
   const cargar = async (q: string) => {    setLoading(true); setError('');
     try {
       const params = new URLSearchParams();
       if (q) params.set('buscar', q);
-      const data = await apiFetch<Candidato[]>(`/api/candidatos?${params}`);
-      setCandidatos(data);
+      const data = await apiFetch<{ candidatos: Candidato[]; pagination: any }>(`/api/candidatos?${params}`);
+      setCandidatos(data.candidatos);
     } catch (e: any) {
       setError(e.message ?? 'Error al cargar candidatos');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const seleccionarCandidato = async (c: Candidato) => {
+    setSelected(c);
+    setLoadingDetalle(true);
+    try {
+      const detalle = await apiFetch<Candidato>(`/api/candidatos/${c.id}`);
+      setSelected(detalle);
+    } catch {
+      // mantener el objeto básico si falla
+    } finally {
+      setLoadingDetalle(false);
     }
   };
 
@@ -61,6 +77,29 @@ export const CandidatosPage: React.FC<Props> = () => {
   }, [buscar]);
 
   const handleBuscar = (e: React.FormEvent) => { e.preventDefault(); cargar(buscar); };
+
+  const toggleVerificarReferencia = async (candidatoId: number, refId: number) => {
+    try {
+      const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3003';
+      const token = localStorage.getItem('wrd_token');
+      const res = await fetch(`${API}/api/candidatos/${candidatoId}/referencias/${refId}/verificar`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      toast.success(data.message);
+      // Actualizar el estado local
+      setSelected(prev => prev ? {
+        ...prev,
+        referencias: prev.referencias.map(r =>
+          r.id === refId ? { ...r, verificado: data.referencia.verificado } : r
+        )
+      } : null);
+    } catch {
+      toast.error('Error al actualizar la referencia');
+    }
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -107,7 +146,7 @@ export const CandidatosPage: React.FC<Props> = () => {
               </div>
             ) : candidatos.map(c => (
               <div key={c.id}
-                onClick={() => setSelected(c)}
+                onClick={() => seleccionarCandidato(c)}
                 className={`card-light p-4 cursor-pointer transition-all card-hover
                   ${selected?.id === c.id ? 'border-primary-400 ring-1 ring-primary-300' : ''}`}>
                 <div className="flex items-center gap-3">
@@ -157,7 +196,12 @@ export const CandidatosPage: React.FC<Props> = () => {
           {/* Detalle */}
           <div className="lg:col-span-3">
             {selected ? (
-              <div className="card-light p-6 sticky top-6 space-y-5">
+              <div className="card-light p-6 sticky top-6 space-y-5 relative">
+                {loadingDetalle && (
+                  <div className="absolute inset-0 bg-white/60 flex items-center justify-center rounded-2xl z-10">
+                    <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                )}
                 {/* Header detalle */}
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
@@ -239,6 +283,37 @@ export const CandidatosPage: React.FC<Props> = () => {
                         <span key={h.id} className={`text-xs px-2.5 py-1 rounded-full ${nivelColor(h.nivel)}`}>
                           {h.habilidad} · {h.nivel}
                         </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Referencias */}
+                {selected.referencias?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-ink-900 mb-2">Referencias <span className="text-xs font-normal text-ink-400">(verificar durante la entrevista)</span></h4>
+                    <div className="space-y-2">
+                      {selected.referencias.map(r => (
+                        <div key={r.id} className={`flex items-start justify-between p-3 rounded-xl border ${r.verificado ? 'bg-accent-50 border-accent-200' : 'bg-surface-bg border-surface-border'}`}>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-ink-900">{r.nombre}</p>
+                            <p className="text-xs text-ink-500">{r.cargo} · {r.empresa}</p>
+                            {r.email && <p className="text-xs text-ink-400">{r.email}</p>}
+                            {r.telefono && <p className="text-xs text-ink-400">{r.telefono}</p>}
+                          </div>
+                          <button
+                            onClick={() => toggleVerificarReferencia(selected.id, r.id)}
+                            className={`ml-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex-shrink-0 ${
+                              r.verificado
+                                ? 'bg-accent-100 text-accent-700 hover:bg-accent-200'
+                                : 'bg-surface-border text-ink-500 hover:bg-ink-100'
+                            }`}>
+                            {r.verificado
+                              ? <><CheckCircle size={13} /> Verificada</>
+                              : <><Circle size={13} /> Verificar</>
+                            }
+                          </button>
+                        </div>
                       ))}
                     </div>
                   </div>

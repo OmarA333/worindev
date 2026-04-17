@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Building2, MapPin, Briefcase, CheckCircle2, XCircle, Search, RefreshCw } from 'lucide-react';
 import { apiFetch } from '@/shared/services/api';
 
@@ -109,12 +109,12 @@ export const EmpresasPage: React.FC<Props> = () => {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-surface-bg border-b border-surface-border">
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Empresa</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Sector / Ciudad</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Plan</th>
-                    <th className="text-center px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Vacantes</th>
-                    <th className="text-center px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Estado</th>
-                    <th className="text-center px-5 py-3 text-xs font-semibold text-ink-500 uppercase tracking-wider">Verificada</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 tracking-wider">Empresa</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 tracking-wider">Sector / Ciudad</th>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-ink-500 tracking-wider">Plan</th>
+                    <th className="text-center px-5 py-3 text-xs font-semibold text-ink-500 tracking-wider">Vacantes</th>
+                    <th className="text-center px-5 py-3 text-xs font-semibold text-ink-500 tracking-wider">Estado</th>
+                    <th className="text-center px-5 py-3 text-xs font-semibold text-ink-500 tracking-wider">Verificada</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-border">

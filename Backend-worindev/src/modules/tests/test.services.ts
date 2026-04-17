@@ -79,16 +79,42 @@ export const actualizarTest = async (id: number, data: any) => {
 }
 
 export const responderTest = async (testId: number, data: any, user: any) => {
-  const { respuestas, puntaje } = data
+  const { respuestas } = data
 
-  if (puntaje === undefined || puntaje < 0 || puntaje > 100)
-    throw new AppError('puntaje debe ser un número entre 0 y 100', 400)
+  if (!respuestas || !Array.isArray(respuestas))
+    throw new AppError('respuestas debe ser un array', 400)
 
-  const test = await prisma.test.findUnique({ where: { id: testId } })
+  const test = await prisma.test.findUnique({ 
+    where: { id: testId },
+    include: { preguntas: { orderBy: { orden: 'asc' } } }
+  })
   if (!test) throw new AppError('Test no encontrado', 404)
 
   const candidato = await prisma.candidato.findFirst({ where: { usuarioId: user.id } })
   if (!candidato) throw new AppError('Perfil de candidato no encontrado', 404)
+
+  // Calcular puntaje automáticamente
+  let correctas = 0
+  const totalPreguntas = test.preguntas.length
+
+  for (const respuesta of respuestas) {
+    const pregunta = test.preguntas.find(p => p.id === respuesta.preguntaId)
+    if (!pregunta) continue
+
+    // Para preguntas de opción múltiple, comparar índice de respuesta
+    if (pregunta.tipo === 'OPCION_MULTIPLE' && pregunta.respuestaCorrecta !== null) {
+      const opciones = pregunta.opciones as string[]
+      const respuestaTexto = respuesta.respuesta
+      const indiceRespuesta = opciones.indexOf(respuestaTexto)
+      
+      if (indiceRespuesta === pregunta.respuestaCorrecta) {
+        correctas++
+      }
+    }
+  }
+
+  // Calcular puntaje: (correctas / total) * 100
+  const puntaje = totalPreguntas > 0 ? Math.round((correctas / totalPreguntas) * 100) : 0
 
   // Upsert resultado
   const resultado = await prisma.testResultado.upsert({
@@ -101,7 +127,21 @@ export const responderTest = async (testId: number, data: any, user: any) => {
   const nuevoScore = await calcularMatchScore(candidato.id)
   await prisma.candidato.update({ where: { id: candidato.id }, data: { matchScore: nuevoScore } })
 
-  return { message: 'Test completado', resultado, nuevoMatchScore: nuevoScore }
+  // Recalcular match de postulaciones y generar citaciones si alcanza 93%
+  const { recalcularMatchPostulaciones } = await import('../postulaciones/postulacion.services')
+  const citaciones = await recalcularMatchPostulaciones(candidato.id)
+  const citacionesGeneradas = citaciones.filter(c => c.citacionGenerada).length
+
+  return { 
+    message: 'Test completado', 
+    resultado, 
+    nuevoMatchScore: nuevoScore,
+    correctas,
+    totalPreguntas,
+    puntaje,
+    citacionesGeneradas,
+    citaciones: citaciones.filter(c => c.citacionGenerada)
+  }
 }
 
 export const resultadosCandidato = async (candidatoId: number) => {
