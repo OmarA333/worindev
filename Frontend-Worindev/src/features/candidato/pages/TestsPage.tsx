@@ -39,11 +39,8 @@ export const TestsPage: React.FC<Props> = ({ onNavigate }) => {
   const cargarTests = async () => {
     try {
       const token = localStorage.getItem('wrd_token');
-      console.log('Token:', token ? 'presente' : 'ausente');
-      console.log('API URL:', API);
 
       if (!token) {
-        console.error('No hay token disponible');
         toast.error('No estás autenticado');
         return;
       }
@@ -51,52 +48,28 @@ export const TestsPage: React.FC<Props> = ({ onNavigate }) => {
       const res = await fetch(`${API}/api/tests`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
-      console.log('Response status:', res.status);
-      console.log('Response ok:', res.ok);
 
-      if (!res.ok) {
-        const error = await res.text();
-        console.error('Error response:', error);
-        throw new Error(`HTTP ${res.status}: ${error}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
-      console.log('Tests cargados:', data);
       setTests(data);
 
       // Cargar resultados del candidato
       const candidatoRes = await fetch(`${API}/api/candidatos/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
-      console.log('Candidato response status:', candidatoRes.status);
 
       if (candidatoRes.ok) {
         const candidato = await candidatoRes.json();
-        console.log('Candidato:', candidato);
-
         const resultadosRes = await fetch(`${API}/api/tests/resultados/candidato/${candidato.id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-
-        console.log('Resultados response status:', resultadosRes.status);
-
         if (resultadosRes.ok) {
-          const resultados = await resultadosRes.json();
-          console.log('Resultados:', resultados);
-          setResultados(resultados);
-        } else {
-          const error = await resultadosRes.text();
-          console.error('Error al cargar resultados:', error);
+          setResultados(await resultadosRes.json());
         }
-      } else {
-        const error = await candidatoRes.text();
-        console.error('Error al cargar candidato:', error);
       }
     } catch (error) {
-      console.error('Error completo:', error);
-      toast.error(`Error: ${error instanceof Error ? error.message : 'Desconocido'}`);
+      toast.error(`Error al cargar tests`);
     } finally {
       setLoading(false);
     }
@@ -104,30 +77,14 @@ export const TestsPage: React.FC<Props> = ({ onNavigate }) => {
 
   const handleStartTest = async (test: Test) => {
     try {
-      console.log('Iniciando test:', test.id);
       const token = localStorage.getItem('wrd_token');
-      console.log('Token disponible:', !!token);
-      
       const res = await fetch(`${API}/api/tests/${test.id}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
-      console.log('Response status:', res.status);
-      
-      if (!res.ok) {
-        const error = await res.text();
-        console.error('Error al cargar test:', error);
-        throw new Error('Error al cargar test');
-      }
-      
-      const testDetalle = await res.json();
-      console.log('Test detalle cargado:', testDetalle);
-      
-      setSelectedTest(testDetalle);
+      if (!res.ok) throw new Error('Error al cargar test');
+      setSelectedTest(await res.json());
       setShowForm(true);
-      console.log('TestForm mostrado');
-    } catch (error) {
-      console.error('Error en handleStartTest:', error);
+    } catch {
       toast.error('Error al cargar el test');
     }
   };
@@ -253,14 +210,16 @@ export const TestsPage: React.FC<Props> = ({ onNavigate }) => {
                       <div className="w-full bg-surface-border rounded-full h-1.5">
                         <div className={`h-1.5 rounded-full bg-gradient-to-r ${color}`} style={{ width: `${puntaje}%` }} />
                       </div>
+                      <button
+                        onClick={() => handleStartTest(t)}
+                        className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-surface-border text-ink-600 text-xs font-semibold hover:border-primary-500 hover:text-primary-600 transition-all">
+                        <Play size={11} /> Repetir test
+                      </button>
                     </div>
                   )}
                   {!completado && (
                     <button
-                      onClick={() => {
-                        console.log('Click en iniciar test:', t.id);
-                        handleStartTest(t);
-                      }}
+                      onClick={() => handleStartTest(t)}
                       className={`mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r ${color} text-white text-xs font-semibold hover:opacity-90 transition-all`}>
                       <Play size={11} /> Iniciar test
                     </button>

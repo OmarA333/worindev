@@ -39,6 +39,7 @@ export const PerfilPage: React.FC<Props> = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [perfil, setPerfil] = useState<Perfil | null>(null);
+  const [perfilId, setPerfilId] = useState<number | null>(null);
   const [form, setForm] = useState<Perfil>({
     nombre: '',
     apellido: '',
@@ -97,6 +98,7 @@ export const PerfilPage: React.FC<Props> = () => {
         const data = await res.json();
         
         setPerfil(data);
+        setPerfilId(data.id ?? null);
         setForm({
           nombre: data.nombre || '',
           rut: data.rut || '',
@@ -133,13 +135,20 @@ export const PerfilPage: React.FC<Props> = () => {
       
       // Obtener nivel más alto de educación desde educaciones
       const nivelesOrden: Record<string, number> = {
-        'Bachiller': 1,
-        'TÃ©cnico': 2,
-        'TecnÃ³logo': 3,
-        'Profesional': 4,
-        'EspecializaciÃ³n': 5,
-        'MaestrÃ­a': 6,
-        'Doctorado': 7,
+        'BACHILLER': 1, 'Bachiller': 1,
+        'TECNICO': 2,   'Técnico': 2,
+        'TECNOLOGO': 3, 'Tecnólogo': 3,
+        'PROFESIONAL': 4, 'Profesional': 4,
+        'ESPECIALIZACION': 5, 'Especialización': 5,
+        'MAESTRIA': 6,  'Maestría': 6,
+        'DOCTORADO': 7, 'Doctorado': 7,
+        'CURSO': 0,     'Curso': 0,
+      };
+
+      const nivelDisplay: Record<string, string> = {
+        'BACHILLER': 'Bachiller', 'TECNICO': 'Técnico', 'TECNOLOGO': 'Tecnólogo',
+        'PROFESIONAL': 'Profesional', 'ESPECIALIZACION': 'Especialización',
+        'MAESTRIA': 'Maestría', 'DOCTORADO': 'Doctorado', 'CURSO': 'Curso',
       };
       
       let nivelMasAlto = '';
@@ -149,7 +158,7 @@ export const PerfilPage: React.FC<Props> = () => {
           const nivel = nivelesOrden[edu.nivel] || 0;
           if (nivel > maxNivel) {
             maxNivel = nivel;
-            nivelMasAlto = edu.nivel;
+            nivelMasAlto = nivelDisplay[edu.nivel] || edu.nivel;
           }
         });
       }
@@ -161,17 +170,18 @@ export const PerfilPage: React.FC<Props> = () => {
         .join(', ') || '';
       
       setPerfil(data);
+      setPerfilId(data.id ?? null);
       setForm({
         nombre: data.nombre || '',
         apellido: data.apellido || '',
         telefono: data.telefono || '',
         ciudad: data.ciudad || '',
-        nivelEducacion: nivelMasAlto || data.nivelEducacion || '',
+        nivelEducacion: nivelMasAlto || nivelDisplay[data.nivelEducacion] || data.nivelEducacion || '',
         tituloObtenido: titulos || data.tituloObtenido || '',
         anosExperiencia: anosExperienciaTotal > 0 ? anosExperienciaTotal.toFixed(1) : (data.anosExperiencia ? String(data.anosExperiencia) : '0'),
         pretensionSalarial: data.pretensionSalarial || undefined,
         disponibilidad: data.disponibilidad || '',
-        modalidadPreferida: data.modalidadPreferida || '',
+        modalidadPreferida: (['PRESENCIAL','REMOTO','HIBRIDO'].includes(data.modalidadPreferida) ? data.modalidadPreferida : ''),
         resumen: data.resumen || '',
         linkedinUrl: data.linkedinUrl || '',
         githubUrl: data.githubUrl || '',
@@ -184,44 +194,69 @@ export const PerfilPage: React.FC<Props> = () => {
   };
 
   const handleSave = async () => {
-    // Los administradores no pueden editar su perfil desde aquí
     if (user?.role === 'ADMIN') {
       toast.error('Los administradores no pueden editar su perfil desde esta página');
       setEditing(false);
       return;
     }
-    
-    if (!form.nombre) {
-      toast.error('El nombre es requerido');
-      return;
-    }
-    
-    if (user?.role === 'CANDIDATO' && !form.apellido) {
-      toast.error('Nombre y apellido son requeridos');
-      return;
-    }
-    
+    if (!form.nombre) { toast.error('El nombre es requerido'); return; }
+    if (user?.role === 'CANDIDATO' && !form.apellido) { toast.error('Nombre y apellido son requeridos'); return; }
+
     setSaving(true);
     try {
       const token = localStorage.getItem('wrd_token');
-      const endpoint = user?.role === 'EMPRESA' 
-        ? `${API}/api/empresas/${(perfil as any)?.id}`
-        : `${API}/api/candidatos/${(perfil as any)?.id}`;
-      
-      const res = await fetch(endpoint, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) throw new Error('Error al guardar');
+
+      if (user?.role === 'EMPRESA') {
+        const endpoint = `${API}/api/empresas/${perfilId}`;
+        const res = await fetch(endpoint, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            nombre: form.nombre, rut: form.rut, sector: form.sector,
+            tamano: form.tamano, ciudad: form.ciudad, descripcion: form.descripcion,
+            logoUrl: form.logoUrl, sitioWeb: form.sitioWeb, cultura: form.cultura,
+          }),
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.message || 'Error al guardar'); }
+      } else {
+        // Candidato: convertir nivelEducacion y modalidadPreferida a formato BD
+        const NIVEL_TO_DB: Record<string, string> = {
+          'Bachiller': 'BACHILLER', 'Técnico': 'TECNICO', 'Tecnólogo': 'TECNOLOGO',
+          'Profesional': 'PROFESIONAL', 'Especialización': 'ESPECIALIZACION',
+          'Maestría': 'MAESTRIA', 'Doctorado': 'DOCTORADO',
+        };
+        const VALID_MODALIDAD = ['PRESENCIAL', 'REMOTO', 'HIBRIDO'];
+        const endpoint = `${API}/api/candidatos/${perfilId}`;
+        const payload = {
+          nombre: form.nombre,
+          apellido: form.apellido,
+          telefono: form.telefono || null,
+          ciudad: form.ciudad || null,
+          pretensionSalarial: form.pretensionSalarial ? Math.round(Number(form.pretensionSalarial)) : null,
+          disponibilidad: form.disponibilidad || null,
+          modalidadPreferida: VALID_MODALIDAD.includes(form.modalidadPreferida || '') ? form.modalidadPreferida : null,
+          resumen: form.resumen || null,
+          linkedinUrl: form.linkedinUrl || null,
+          githubUrl: form.githubUrl || null,
+        };
+        console.log('Enviando payload:', JSON.stringify(payload));
+        const res = await fetch(endpoint, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const e = await res.json();
+          console.error('Error respuesta:', e);
+          throw new Error(e.message || 'Error al guardar');
+        }
+      }
+
       toast.success('Perfil actualizado correctamente');
       setEditing(false);
       cargarPerfil();
-    } catch (error) {
-      toast.error('Error al guardar perfil');
+    } catch (error: any) {
+      toast.error(error.message || 'Error al guardar perfil');
     } finally {
       setSaving(false);
     }
@@ -435,45 +470,63 @@ export const PerfilPage: React.FC<Props> = () => {
               <Briefcase size={18} /> Información Profesional
             </h3>
             <div className="grid md:grid-cols-2 gap-4">
+              {/* Solo lectura — calculados desde currículum */}
               {[
-                { key: 'anosExperiencia', label: 'Años de Experiencia', type: 'text' },
-                { key: 'pretensionSalarial', label: 'Pretensión Salarial', type: 'number' },
-                { key: 'nivelEducacion', label: 'Nivel de Educación', type: 'text' },
-                { key: 'modalidadPreferida', label: 'Modalidad Preferida', type: 'select', options: ['Presencial', 'Remoto', 'Híbrido'] },
+                { key: 'anosExperiencia', label: 'Años de experiencia' },
+                { key: 'nivelEducacion',  label: 'Nivel de educación' },
               ].map(f => (
                 <div key={f.key}>
                   <label className="text-xs font-semibold text-ink-500 tracking-wider mb-1.5 block">
-                    {f.label}
+                    {f.label} <span className="text-xs font-normal text-ink-400">(desde currículum)</span>
                   </label>
-                  {editing ? (
-                    f.type === 'select' ? (
-                      <select
-                        value={(form as any)[f.key] || ''}
-                        onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                        className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500">
-                        <option value="">Selecciona...</option>
-                        {(f.options || []).map(opt => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type={f.type}
-                        value={(form as any)[f.key] || ''}
-                        onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
-                        className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
-                      />
-                    )
-                  ) : (
-                    <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
-                      {(form as any)[f.key] || '—'}
-                    </p>
-                  )}
+                  <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
+                    {(form as any)[f.key] || '—'}
+                  </p>
                 </div>
               ))}
+
+              {/* Editables */}
+              <div>
+                <label className="text-xs font-semibold text-ink-500 tracking-wider mb-1.5 block">
+                  Pretensión salarial (COP)
+                </label>
+                {editing ? (
+                  <input
+                    type="number"
+                    value={(form as any).pretensionSalarial || ''}
+                    onChange={e => setForm(p => ({ ...p, pretensionSalarial: e.target.value as any }))}
+                    placeholder="3000000"
+                    className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500"
+                  />
+                ) : (
+                  <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
+                    {form.pretensionSalarial ? `$${Number(form.pretensionSalarial).toLocaleString()}` : '—'}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-ink-500 tracking-wider mb-1.5 block">
+                  Modalidad preferida
+                </label>
+                {editing ? (
+                  <select
+                    value={(form as any).modalidadPreferida || ''}
+                    onChange={e => setForm(p => ({ ...p, modalidadPreferida: e.target.value }))}
+                    className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary-500">
+                    <option value="">Selecciona...</option>
+                    <option value="PRESENCIAL">Presencial</option>
+                    <option value="REMOTO">Remoto</option>
+                    <option value="HIBRIDO">Híbrido</option>
+                  </select>
+                ) : (
+                  <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
+                    {({'PRESENCIAL':'Presencial','REMOTO':'Remoto','HIBRIDO':'Híbrido'} as any)[(form as any).modalidadPreferida] || (form as any).modalidadPreferida || '—'}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-
           {/* Resumen Profesional */}
           <div className="card-light p-6">
             <h3 className="font-semibold text-ink-900 mb-5 flex items-center gap-2">

@@ -34,27 +34,13 @@ export const CurriculoPage: React.FC<Props> = () => {
   const cargarCandidato = async () => {
     try {
       const token = localStorage.getItem('wrd_token');
-      console.log('Token:', token ? 'presente' : 'ausente');
-      console.log('API URL:', API);
-
       const res = await fetch(`${API}/api/candidatos/me`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      console.log('Response status:', res.status);
-
-      if (!res.ok) {
-        const error = await res.text();
-        console.error('Error response:', error);
-        throw new Error(`Error al cargar perfil: ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log('Candidato cargado:', data);
-      setCandidato(data);
+      if (!res.ok) throw new Error(`Error al cargar perfil: ${res.status}`);
+      setCandidato(await res.json());
     } catch (error) {
-      console.error('Error completo:', error);
-      toast.error(`Error al cargar perfil: ${error instanceof Error ? error.message : 'Desconocido'}`);
+      toast.error('Error al cargar perfil');
     } finally {
       setLoading(false);
     }
@@ -180,7 +166,6 @@ const PersonalSection: React.FC<{ candidato: Candidato; onUpdate: () => void }> 
           { key: 'ciudad', label: 'Ciudad', type: 'text', icon: MapPin },
           { key: 'pretensionSalarial', label: 'Sueldo Esperado', type: 'number', icon: DollarSign },
           { key: 'disponibilidad', label: 'Disponibilidad', type: 'select', options: ['Inmediata', '15 días', '1 mes', 'Más de 1 mes'] },
-          { key: 'modalidadPreferida', label: 'Modalidad', type: 'select', options: ['Presencial', 'Remoto', 'HÃ­brido'] },
         ].map(field => (
           <div key={field.key}>
             <label className="text-xs font-semibold text-ink-500 tracking-wider mb-1.5 block">
@@ -207,11 +192,33 @@ const PersonalSection: React.FC<{ candidato: Candidato; onUpdate: () => void }> 
               )
             ) : (
               <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
-                {(form as any)[field.key] || '—'}
+                {field.key === 'modalidadPreferida'
+                  ? ({'PRESENCIAL':'Presencial','REMOTO':'Remoto','HIBRIDO':'Híbrido'} as any)[(form as any)[field.key]] || (form as any)[field.key] || '—'
+                  : (form as any)[field.key] || '—'}
               </p>
             )}
           </div>
         ))}
+      </div>
+
+      {/* Modalidad */}
+      <div>
+        <label className="text-xs font-semibold text-ink-500 tracking-wider mb-1.5 block">Modalidad preferida</label>
+        {editing ? (
+          <select
+            value={form.modalidadPreferida}
+            onChange={e => setForm(p => ({ ...p, modalidadPreferida: e.target.value }))}
+            className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-ink-900 text-sm focus:outline-none focus:border-primary-500">
+            <option value="">Selecciona...</option>
+            <option value="PRESENCIAL">Presencial</option>
+            <option value="REMOTO">Remoto</option>
+            <option value="HIBRIDO">Híbrido</option>
+          </select>
+        ) : (
+          <p className="text-ink-900 text-sm py-2 px-3 bg-surface-bg rounded-lg border border-surface-border">
+            {({'PRESENCIAL':'Presencial','REMOTO':'Remoto','HIBRIDO':'Híbrido'} as any)[form.modalidadPreferida] || form.modalidadPreferida || '—'}
+          </p>
+        )}
       </div>
 
       {/* CV Upload */}
@@ -350,13 +357,14 @@ const EducacionSection: React.FC<{ candidato: Candidato; onUpdate: () => void }>
           <input type="text" placeholder="Título" value={form.titulo} onChange={e => setForm(p => ({ ...p, titulo: e.target.value }))} className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm" />
           <select value={form.nivel} onChange={e => setForm(p => ({ ...p, nivel: e.target.value }))} className="w-full bg-surface-bg border border-surface-border rounded-lg px-3 py-2 text-sm">
             <option value="">Nivel</option>
-            <option value="Bachiller">Bachiller</option>
-            <option value="Técnico">Técnico</option>
-            <option value="Tecnólogo">Tecnólogo</option>
-            <option value="Profesional">Profesional</option>
-            <option value="Especialización">Especialización</option>
-            <option value="Maestría">Maestría</option>
-            <option value="Doctorado">Doctorado</option>
+            <option value="CURSO">Curso</option>
+            <option value="BACHILLER">Bachiller</option>
+            <option value="TECNICO">Técnico</option>
+            <option value="TECNOLOGO">Tecnólogo</option>
+            <option value="PROFESIONAL">Profesional</option>
+            <option value="ESPECIALIZACION">Especialización</option>
+            <option value="MAESTRIA">Maestría</option>
+            <option value="DOCTORADO">Doctorado</option>
           </select>
           <div className="grid grid-cols-2 gap-2">
             <div>
@@ -398,7 +406,9 @@ const EducacionSection: React.FC<{ candidato: Candidato; onUpdate: () => void }>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <span className="text-ink-500">Nivel:</span>
-                  <p className="text-ink-900 font-medium">{edu.nivel}</p>
+                  <p className="text-ink-900 font-medium">
+                    {({'CURSO':'Curso','BACHILLER':'Bachiller','TECNICO':'Técnico','TECNOLOGO':'Tecnólogo','PROFESIONAL':'Profesional','ESPECIALIZACION':'Especialización','MAESTRIA':'Maestría','DOCTORADO':'Doctorado'} as any)[edu.nivel] || edu.nivel}
+                  </p>
                 </div>
                 <div>
                   <span className="text-ink-500">Estado:</span>

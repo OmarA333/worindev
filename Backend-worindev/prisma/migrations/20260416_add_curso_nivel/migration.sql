@@ -1,0 +1,1 @@
+ALTER TYPE "NivelEducacion" ADD VALUE 'CURSO';

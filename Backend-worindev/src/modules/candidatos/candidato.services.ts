@@ -1,4 +1,4 @@
-import prisma from '../../config/prisma'
+﻿import prisma from '../../config/prisma'
 import { AppError } from '../../utils/AppError'
 import transporter from '../../config/mailer'
 import { emailReferencia } from '../../utils/email.templates'
@@ -91,6 +91,8 @@ export const obtenerCandidatoActual = async (user: any) => {
 
 // ─── ACTUALIZAR ───────────────────────────────────────────────────────────────
 export const actualizarCandidato = async (id: number, data: any) => {
+  console.log('[actualizarCandidato] INICIO id:', id)
+  console.log('[actualizarCandidato] data recibida:', JSON.stringify(data))
   const existe = await prisma.candidato.findUnique({ 
     where: { id },
     include: {
@@ -106,6 +108,10 @@ export const actualizarCandidato = async (id: number, data: any) => {
     disponibilidad, modalidadPreferida, resumen, linkedinUrl, githubUrl
   } = data
 
+  // Limpiar enums — convertir string vacío a undefined para que Prisma no falle
+  const modalidad = modalidadPreferida && modalidadPreferida !== '' ? modalidadPreferida : undefined
+  const nivelEduInput = nivelEducacion && nivelEducacion !== '' ? nivelEducacion : undefined
+
   // Calcular años de experiencia desde experiencias si no se proporciona
   let anosExp = anosExperiencia !== undefined ? Number(anosExperiencia) : undefined
   if (anosExp === undefined && existe.experiencias.length > 0) {
@@ -120,10 +126,10 @@ export const actualizarCandidato = async (id: number, data: any) => {
   }
 
   // Obtener nivel más alto de educación desde educaciones si no se proporciona
-  let nivelEdu = nivelEducacion
+  let nivelEdu = nivelEduInput
   if (!nivelEdu && existe.educaciones.length > 0) {
     const nivelesOrden: Record<string, number> = {
-      'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
+      'CURSO': 0, 'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
       'ESPECIALIZACION': 5, 'MAESTRIA': 6, 'DOCTORADO': 7,
     }
     let maxNivel = 0
@@ -154,13 +160,17 @@ export const actualizarCandidato = async (id: number, data: any) => {
       ...(nivelEdu           !== undefined && { nivelEducacion: nivelEdu }),
       ...(titulos            !== undefined && { tituloObtenido: titulos }),
       ...(anosExp            !== undefined && { anosExperiencia: anosExp }),
-      ...(pretensionSalarial !== undefined && { pretensionSalarial: Number(pretensionSalarial) }),
+      ...(pretensionSalarial !== undefined && pretensionSalarial !== null && { pretensionSalarial: Math.round(Number(pretensionSalarial)) }),
+      ...(pretensionSalarial === null && { pretensionSalarial: null }),
       ...(disponibilidad     !== undefined && { disponibilidad }),
-      ...(modalidadPreferida !== undefined && { modalidadPreferida }),
+      ...(modalidad          !== undefined && { modalidadPreferida: modalidad }),
       ...(resumen            !== undefined && { resumen }),
       ...(linkedinUrl        !== undefined && { linkedinUrl }),
       ...(githubUrl          !== undefined && { githubUrl }),
     }
+  }).catch((err: any) => {
+    console.error('[Prisma update candidato]', err.message)
+    throw err
   })
 
   // Recalcular match score y generar citaciones si alcanza 93%
@@ -351,7 +361,7 @@ export const agregarEducacion = async (candidatoId: number, data: any) => {
   if (!data.institucion || !data.titulo || !data.nivel || !data.fechaInicio)
     throw new AppError('Institución, título, nivel y fecha de inicio son requeridos', 400)
 
-  const nivelesValidos = ['BACHILLER', 'TECNICO', 'TECNOLOGO', 'PROFESIONAL', 'ESPECIALIZACION', 'MAESTRIA', 'DOCTORADO']
+  const nivelesValidos = ['CURSO', 'BACHILLER', 'TECNICO', 'TECNOLOGO', 'PROFESIONAL', 'ESPECIALIZACION', 'MAESTRIA', 'DOCTORADO']
   if (!nivelesValidos.includes(data.nivel))
     throw new AppError(`Nivel de educación inválido. Debe ser uno de: ${nivelesValidos.join(', ')}`, 400)
 
@@ -372,7 +382,7 @@ export const agregarEducacion = async (candidatoId: number, data: any) => {
     // Recalcular nivel más alto y títulos desde todas las educaciones
     const educaciones = await prisma.educacion.findMany({ where: { candidatoId } })
     const nivelesOrden: Record<string, number> = {
-      'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
+      'CURSO': 0, 'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
       'ESPECIALIZACION': 5, 'MAESTRIA': 6, 'DOCTORADO': 7,
     }
     let nivelMasAlto = ''
@@ -412,7 +422,7 @@ export const actualizarEducacion = async (candidatoId: number, eduId: number, da
   if (!data.institucion || !data.titulo || !data.nivel || !data.fechaInicio)
     throw new AppError('Institución, título, nivel y fecha de inicio son requeridos', 400)
 
-  const nivelesValidos = ['BACHILLER', 'TECNICO', 'TECNOLOGO', 'PROFESIONAL', 'ESPECIALIZACION', 'MAESTRIA', 'DOCTORADO']
+  const nivelesValidos = ['CURSO', 'BACHILLER', 'TECNICO', 'TECNOLOGO', 'PROFESIONAL', 'ESPECIALIZACION', 'MAESTRIA', 'DOCTORADO']
   if (!nivelesValidos.includes(data.nivel))
     throw new AppError(`Nivel de educación inválido. Debe ser uno de: ${nivelesValidos.join(', ')}`, 400)
 
@@ -433,7 +443,7 @@ export const actualizarEducacion = async (candidatoId: number, eduId: number, da
     // Recalcular nivel más alto y títulos desde todas las educaciones
     const educaciones = await prisma.educacion.findMany({ where: { candidatoId } })
     const nivelesOrden: Record<string, number> = {
-      'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
+      'CURSO': 0, 'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
       'ESPECIALIZACION': 5, 'MAESTRIA': 6, 'DOCTORADO': 7,
     }
     let nivelMasAlto = ''
@@ -470,7 +480,7 @@ export const eliminarEducacion = async (candidatoId: number, eduId: number) => {
   // Recalcular nivel más alto y títulos desde todas las educaciones restantes
   const educaciones = await prisma.educacion.findMany({ where: { candidatoId } })
   const nivelesOrden: Record<string, number> = {
-    'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
+    'CURSO': 0, 'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
     'ESPECIALIZACION': 5, 'MAESTRIA': 6, 'DOCTORADO': 7,
   }
   let nivelMasAlto = ''

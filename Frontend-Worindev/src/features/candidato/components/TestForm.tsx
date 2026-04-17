@@ -30,8 +30,6 @@ export const TestForm: React.FC<Props> = ({ test, onComplete, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(test.duracion * 60);
 
-  console.log('TestForm renderizado con test:', test.nombre, 'Preguntas:', test.preguntas.length);
-
   if (!test.preguntas || test.preguntas.length === 0) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">

@@ -17,9 +17,11 @@ const RegistroSchema = z.object({
   nombre:   z.string().trim().min(2).max(100),
   apellido: z.string().trim().min(2).max(100).optional(),
   // Candidato
-  telefono: z.string().trim().optional(),
-  ciudad: z.string().trim().optional(),
-  disponibilidad: z.string().trim().optional(),
+  telefono:           z.string().trim().optional(),
+  ciudad:             z.string().trim().optional(),
+  disponibilidad:     z.string().trim().optional(),
+  pretensionSalarial: z.coerce.number().int().min(0).optional(),
+  modalidadPreferida: z.enum(['PRESENCIAL', 'REMOTO', 'HIBRIDO']).optional(),
   // Empresa
   nombreEmpresa: z.string().trim().min(2).max(150).optional(),
   rut:           z.string().trim().optional(),
@@ -55,12 +57,14 @@ export const registrar = async (data: unknown) => {
     if (d.rol === 'CANDIDATO') {
       await tx.candidato.create({
         data: {
-          usuarioId: u.id,
-          nombre: d.nombre,
-          apellido: d.apellido ?? '',
-          telefono: d.telefono ?? null,
-          ciudad: d.ciudad ?? null,
-          disponibilidad: d.disponibilidad ?? null,
+          usuarioId:          u.id,
+          nombre:             d.nombre,
+          apellido:           d.apellido ?? '',
+          telefono:           d.telefono ?? null,
+          ciudad:             d.ciudad ?? null,
+          disponibilidad:     d.disponibilidad ?? null,
+          pretensionSalarial: d.pretensionSalarial ?? null,
+          modalidadPreferida: d.modalidadPreferida ?? null,
         }
       })
     } else {

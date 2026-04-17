@@ -63,6 +63,7 @@ enum TipoTest {
 }
 
 enum NivelEducacion {
+  CURSO
   BACHILLER
   TECNICO
   TECNOLOGO

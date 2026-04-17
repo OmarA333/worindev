@@ -13,6 +13,7 @@ export const RegisterPage: React.FC<Props> = ({ onNavigate }) => {
   const [form, setForm] = useState({
     nombre: '', apellido: '', email: '', password: '', confirm: '',
     telefono: '', ciudad: '', disponibilidad: '',
+    pretensionSalarial: '', modalidadPreferida: '',
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,6 +39,11 @@ export const RegisterPage: React.FC<Props> = ({ onNavigate }) => {
         body.telefono = form.telefono;
         body.ciudad = form.ciudad;
         body.disponibilidad = form.disponibilidad;
+        if (form.pretensionSalarial) body.pretensionSalarial = form.pretensionSalarial;
+        if (form.modalidadPreferida) {
+          const MAP: Record<string, string> = { 'Presencial': 'PRESENCIAL', 'Remoto': 'REMOTO', 'Híbrido': 'HIBRIDO' };
+          body.modalidadPreferida = MAP[form.modalidadPreferida] || form.modalidadPreferida;
+        }
       } else {
         body.nombreEmpresa = form.nombre;
       }
@@ -102,7 +108,9 @@ export const RegisterPage: React.FC<Props> = ({ onNavigate }) => {
         { key: 'email',    label: 'Correo electrónico',   type: 'email',    placeholder: 'tu@email.com',   required: true },
         { key: 'telefono', label: 'Teléfono',             type: 'tel',      placeholder: '+57 300 123 4567', required: false },
         { key: 'ciudad',   label: 'Ciudad',               type: 'text',     placeholder: 'Bogotá',         required: false },
-        { key: 'disponibilidad', label: 'Disponibilidad', type: 'select',   options: ['Inmediata', '15 días', '1 mes', 'Más de 1 mes'], required: false },
+        { key: 'disponibilidad',      label: 'Disponibilidad',       type: 'select',  options: ['Inmediata', '15 días', '1 mes', 'Más de 1 mes'], required: false },
+        { key: 'pretensionSalarial',  label: 'Sueldo esperado (COP)', type: 'number',  placeholder: '3000000', required: false },
+        { key: 'modalidadPreferida',  label: 'Modalidad preferida',   type: 'select',  options: ['Presencial', 'Remoto', 'Híbrido'], required: false },
         { key: 'password', label: 'Contraseña',           type: 'password', placeholder: '••••••••',       required: true },
         { key: 'confirm',  label: 'Confirmar contraseña', type: 'password', placeholder: '••••••••',       required: true },
       ]

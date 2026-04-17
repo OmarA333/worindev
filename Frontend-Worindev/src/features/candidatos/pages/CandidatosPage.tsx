@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Users, MapPin, Star, Search, RefreshCw, X, Briefcase, GraduationCap, Phone, CheckCircle, Circle } from 'lucide-react';
+import { Users, MapPin, Star, Search, RefreshCw, X, Briefcase, GraduationCap, Phone, CheckCircle, Circle, BookOpen, Award } from 'lucide-react';
 import { apiFetch } from '@/shared/services/api';
 import toast from 'react-hot-toast';
 
 interface Props { onNavigate: (path: string) => void; }
 
-interface Habilidad { id: number; habilidad: string; nivel: string; }
-interface Referencia { id: number; nombre: string; cargo: string; empresa: string; email: string; telefono: string | null; verificado: boolean; }
+interface Habilidad    { id: number; habilidad: string; nivel: string; }
+interface Referencia   { id: number; nombre: string; cargo: string; empresa: string; email: string; telefono: string | null; verificado: boolean; }
+interface Experiencia  { id: number; empresa: string; cargo: string; descripcion: string | null; fechaInicio: string; fechaFin: string | null; actual: boolean; }
+interface Educacion    { id: number; institucion: string; titulo: string; nivel: string; fechaInicio: string; fechaFin: string | null; actual: boolean; }
+interface TestResultado { id: number; puntaje: number; completadoAt: string; test: { nombre: string; tipo: string; }; }
 
 interface Candidato {
   id:                 number;
@@ -21,9 +24,14 @@ interface Candidato {
   disponibilidad:     string | null;
   matchScore:         number;
   resumen:            string | null;
+  cvUrl:              string | null;
+  linkedinUrl:        string | null;
   usuario:            { email: string; estado: string };
   habilidades:        Habilidad[];
   referencias:        Referencia[];
+  experiencias:       Experiencia[];
+  educaciones:        Educacion[];
+  testResultados:     TestResultado[];
   _count:             { postulaciones: number };
 }
 
@@ -35,6 +43,34 @@ const nivelColor = (nivel: string) =>
 
 const scoreColor = (s: number) =>
   s >= 90 ? 'text-accent-600' : s >= 70 ? 'text-yellow-600' : 'text-ink-500';
+
+const NIVEL_DISPLAY: Record<string, string> = {
+  'CURSO': 'Curso', 'BACHILLER': 'Bachiller', 'TECNICO': 'Técnico', 'TECNOLOGO': 'Tecnólogo',
+  'PROFESIONAL': 'Profesional', 'ESPECIALIZACION': 'Especialización',
+  'MAESTRIA': 'Maestría', 'DOCTORADO': 'Doctorado',
+};
+
+const calcularAnosExp = (experiencias?: Experiencia[]) => {
+  if (!experiencias?.length) return 0;
+  let total = 0;
+  experiencias.forEach(e => {
+    const inicio = new Date(e.fechaInicio);
+    const fin = e.actual ? new Date() : new Date(e.fechaFin!);
+    total += Math.max(0, (fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
+  });
+  return Math.round(total * 10) / 10;
+};
+
+const calcularNivelEdu = (educaciones?: Educacion[]) => {
+  if (!educaciones?.length) return null;
+  const orden: Record<string, number> = {
+    'BACHILLER': 1, 'TECNICO': 2, 'TECNOLOGO': 3, 'PROFESIONAL': 4,
+    'ESPECIALIZACION': 5, 'MAESTRIA': 6, 'DOCTORADO': 7,
+  };
+  let max = 0, nivel = '';
+  educaciones.forEach(e => { const n = orden[e.nivel] || 0; if (n > max) { max = n; nivel = e.nivel; } });
+  return NIVEL_DISPLAY[nivel] || nivel || null;
+};
 
 export const CandidatosPage: React.FC<Props> = () => {
   const [candidatos, setCandidatos] = useState<Candidato[]>([]);
@@ -138,7 +174,7 @@ export const CandidatosPage: React.FC<Props> = () => {
         <div className="grid lg:grid-cols-5 gap-5">
 
           {/* Lista */}
-          <div className="lg:col-span-2 space-y-3">
+          <div className="lg:col-span-2 space-y-3 overflow-y-auto max-h-[calc(100vh-220px)] pr-1">
             {candidatos.length === 0 ? (
               <div className="card-light p-12 text-center">
                 <Users size={40} className="text-ink-300 mx-auto mb-3" />
@@ -196,7 +232,7 @@ export const CandidatosPage: React.FC<Props> = () => {
           {/* Detalle */}
           <div className="lg:col-span-3">
             {selected ? (
-              <div className="card-light p-6 sticky top-6 space-y-5 relative">
+              <div className="card-light p-6 sticky top-6 space-y-5 relative overflow-y-auto max-h-[calc(100vh-120px)]">
                 {loadingDetalle && (
                   <div className="absolute inset-0 bg-white/60 flex items-center justify-center rounded-2xl z-10">
                     <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
@@ -237,8 +273,8 @@ export const CandidatosPage: React.FC<Props> = () => {
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { icon: MapPin,        label: 'Ciudad',       value: selected.ciudad ?? '—' },
-                    { icon: Briefcase,     label: 'Experiencia',  value: `${selected.anosExperiencia} años` },
-                    { icon: GraduationCap, label: 'Educación',    value: selected.nivelEducacion ?? '—' },
+                    { icon: Briefcase,     label: 'Experiencia',  value: `${calcularAnosExp(selected.experiencias)} años` },
+                    { icon: GraduationCap, label: 'Educación',    value: calcularNivelEdu(selected.educaciones) ?? (NIVEL_DISPLAY[selected.nivelEducacion ?? ''] || selected.nivelEducacion) ?? '—' },
                     { icon: Star,          label: 'Postulaciones',value: String(selected._count.postulaciones) },
                   ].map(d => (
                     <div key={d.label} className="bg-surface-bg rounded-xl p-3 border border-surface-border">
@@ -274,10 +310,53 @@ export const CandidatosPage: React.FC<Props> = () => {
                   </div>
                 )}
 
-                {/* Habilidades */}
-                {selected.habilidades.length > 0 && (
+                {/* Experiencia */}
+                {selected.experiencias?.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-semibold text-ink-900 mb-2">Habilidades</h4>
+                    <h4 className="text-sm font-semibold text-ink-900 mb-2 flex items-center gap-1.5">
+                      <Briefcase size={14} className="text-ink-400" /> Experiencia laboral
+                    </h4>
+                    <div className="space-y-2">
+                      {selected.experiencias.map(e => (
+                        <div key={e.id} className="bg-surface-bg border border-surface-border rounded-xl p-3">
+                          <p className="text-sm font-semibold text-ink-900">{e.cargo}</p>
+                          <p className="text-xs text-ink-500">{e.empresa}</p>
+                          <p className="text-xs text-ink-400 mt-0.5">
+                            {new Date(e.fechaInicio).getFullYear()} — {e.actual ? 'Presente' : e.fechaFin ? new Date(e.fechaFin).getFullYear() : ''}
+                          </p>
+                          {e.descripcion && <p className="text-xs text-ink-600 mt-1 line-clamp-2">{e.descripcion}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Educación */}
+                {selected.educaciones?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-ink-900 mb-2 flex items-center gap-1.5">
+                      <GraduationCap size={14} className="text-ink-400" /> Educación
+                    </h4>
+                    <div className="space-y-2">
+                      {selected.educaciones.map(e => (
+                        <div key={e.id} className="bg-surface-bg border border-surface-border rounded-xl p-3">
+                          <p className="text-sm font-semibold text-ink-900">{e.titulo}</p>
+                          <p className="text-xs text-ink-500">{e.institucion}</p>
+                          <p className="text-xs text-ink-400 mt-0.5">
+                            {NIVEL_DISPLAY[e.nivel] || e.nivel} · {new Date(e.fechaInicio).getFullYear()} — {e.actual ? 'Presente' : e.fechaFin ? new Date(e.fechaFin).getFullYear() : ''}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Habilidades */}
+                {selected.habilidades?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-ink-900 mb-2 flex items-center gap-1.5">
+                      <BookOpen size={14} className="text-ink-400" /> Habilidades
+                    </h4>
                     <div className="flex flex-wrap gap-2">
                       {selected.habilidades.map(h => (
                         <span key={h.id} className={`text-xs px-2.5 py-1 rounded-full ${nivelColor(h.nivel)}`}>
@@ -285,6 +364,50 @@ export const CandidatosPage: React.FC<Props> = () => {
                         </span>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* Tests */}
+                {selected.testResultados?.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-ink-900 mb-2 flex items-center gap-1.5">
+                      <Award size={14} className="text-ink-400" /> Resultados de tests
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2">
+                      {selected.testResultados.map(r => (
+                        <div key={r.id} className="bg-surface-bg border border-surface-border rounded-xl p-3">
+                          <p className="text-xs text-ink-500 truncate">{r.test.nombre}</p>
+                          <div className="flex items-center justify-between mt-1">
+                            <div className="flex-1 bg-surface-border rounded-full h-1.5 mr-2">
+                              <div className="h-1.5 rounded-full bg-gradient-to-r from-primary-500 to-accent-500"
+                                style={{ width: `${r.puntaje}%` }} />
+                            </div>
+                            <span className={`text-xs font-bold ${r.puntaje >= 70 ? 'text-accent-600' : 'text-yellow-600'}`}>
+                              {r.puntaje}%
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* CV / LinkedIn */}
+                {(selected.cvUrl || selected.linkedinUrl) && (
+                  <div className="flex gap-2">
+                    {selected.cvUrl && (
+                      <a href={`${import.meta.env.VITE_API_URL ?? 'http://localhost:3003'}${selected.cvUrl}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="flex-1 text-center py-2 rounded-xl border border-primary-300 text-primary-600 text-xs font-semibold hover:bg-primary-50 transition-all">
+                        📄 Ver CV
+                      </a>
+                    )}
+                    {selected.linkedinUrl && (
+                      <a href={selected.linkedinUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex-1 text-center py-2 rounded-xl border border-surface-border text-ink-600 text-xs font-semibold hover:bg-surface-bg transition-all">
+                        🔗 LinkedIn
+                      </a>
+                    )}
                   </div>
                 )}
 

@@ -68,6 +68,7 @@ export const asyncHandler = (fn: AsyncFn) =>
     try {
       // ─── Validar parámetros de la URL ─────────────────────────────────────
       for (const [key, value] of Object.entries(req.params)) {
+        console.log(`[asyncHandler] param ${key}=${value}`)
         if (value === '' || value === undefined) {
           return res.status(400).json({ message: `El parámetro '${key}' es requerido` })
         }
@@ -121,8 +122,15 @@ if (key === 'date') {
         return res.status(500).json({ message: 'Error interno del servidor' })
       }
 
+      // ─── Errores de validación de Prisma (enum inválido, etc.) ────────────
+      if (e.name === 'PrismaClientValidationError') {
+        console.error('[Prisma Validation]', e.message)
+        return res.status(400).json({ message: 'Datos inválidos: ' + e.message.split('\n').pop() })
+      }
+
       // ─── Errores normales del negocio ─────────────────────────────────────
       const status = inferStatus(e.message ?? '')
+      console.error(`[${status}]`, e.message)
       res.status(status).json({ message: e.message })
     }
   }

@@ -38,7 +38,7 @@ export const calcularMatchScore = async (candidatoId: number): Promise<number> =
 
   // Educación (hasta 40 pts)
   const nivelEduPts: Record<string, number> = {
-    BACHILLER: 10, TECNICO: 20, TECNOLOGO: 30,
+    CURSO: 5, BACHILLER: 10, TECNICO: 20, TECNOLOGO: 30,
     PROFESIONAL: 40, ESPECIALIZACION: 50, MAESTRIA: 60, DOCTORADO: 70
   }
   if (candidato.nivelEducacion) hardScore += Math.min(40, nivelEduPts[candidato.nivelEducacion] ?? 0)
@@ -127,7 +127,7 @@ export const calcularMatchConVacante = async (candidatoId: number, vacanteId: nu
 
   // Bonus por nivel educativo
   const nivelOrd: Record<string, number> = {
-    BACHILLER: 1, TECNICO: 2, TECNOLOGO: 3, PROFESIONAL: 4,
+    CURSO: 0, BACHILLER: 1, TECNICO: 2, TECNOLOGO: 3, PROFESIONAL: 4,
     ESPECIALIZACION: 5, MAESTRIA: 6, DOCTORADO: 7
   }
   const nivelCandidato = nivelOrd[candidato.nivelEducacion ?? ''] ?? 0
