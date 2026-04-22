@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { LogoLight } from '@/shared/components/Logo';
-import { ArrowRight, ArrowLeft, User, Building2, Home } from 'lucide-react';
+import { ArrowRight, ArrowLeft, User, Building2, Home, Info } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface Props { onNavigate: (path: string) => void; }
@@ -10,6 +10,7 @@ const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3003';
 export const RegisterPage: React.FC<Props> = ({ onNavigate }) => {
   const [tipo, setTipo] = useState<'candidato' | 'empresa' | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showInfo, setShowInfo] = useState<'candidato' | 'empresa' | null>(null);
   const [form, setForm] = useState({
     nombre: '', apellido: '', email: '', password: '', confirm: '',
     telefono: '', ciudad: '', disponibilidad: '',
@@ -82,15 +83,22 @@ export const RegisterPage: React.FC<Props> = ({ onNavigate }) => {
             { key: 'candidato', icon: User,      title: 'Soy Candidato', desc: 'Busco empleo y quiero conectar con empresas',      badge: 'Gratis' },
             { key: 'empresa',   icon: Building2, title: 'Soy Empresa',   desc: 'Quiero encontrar el talento ideal para mi equipo', badge: 'SaaS'  },
           ].map(o => (
-            <button key={o.key} onClick={() => setTipo(o.key as 'candidato' | 'empresa')}
-              className="glass rounded-2xl p-6 border border-white/10 hover:border-primary-500/40 transition-all text-left card-hover">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mb-4">
-                <o.icon size={22} className="text-white" />
-              </div>
-              <span className="text-xs px-2 py-0.5 rounded-full bg-accent-500/20 text-accent-400 font-semibold mb-3 inline-block">{o.badge}</span>
-              <h3 className="font-bold text-white mb-1">{o.title}</h3>
-              <p className="text-slate-500 text-sm">{o.desc}</p>
-            </button>
+            <div key={o.key} className="relative">
+              <button onClick={() => setTipo(o.key as 'candidato' | 'empresa')}
+                className="glass rounded-2xl p-6 border border-white/10 hover:border-primary-500/40 transition-all text-left card-hover w-full">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center mb-4">
+                  <o.icon size={22} className="text-white" />
+                </div>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-accent-500/20 text-accent-400 font-semibold mb-3 inline-block">{o.badge}</span>
+                <h3 className="font-bold text-white mb-1">{o.title}</h3>
+                <p className="text-slate-500 text-sm">{o.desc}</p>
+              </button>
+              <button onClick={() => setShowInfo(o.key as 'candidato' | 'empresa')}
+                className="absolute top-4 right-4 p-2 text-slate-400 hover:text-primary-400 hover:bg-white/5 rounded-lg transition-all"
+                title="Más información">
+                <Info size={18} />
+              </button>
+            </div>
           ))}
         </div>
         <p className="text-center text-sm text-slate-500 mt-6">
@@ -176,6 +184,72 @@ export const RegisterPage: React.FC<Props> = ({ onNavigate }) => {
           </form>
         </div>
       </div>
+
+      {/* Modal de Información - Candidato */}
+      {showInfo === 'candidato' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowInfo(null)}>
+          <div className="glass rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowInfo(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              <User size={24} /> Información para Candidatos
+            </h3>
+            <div className="space-y-4 text-slate-300">
+              <p>Como candidato, podrás:</p>
+              <ul className="list-disc list-inside space-y-2 pl-2">
+                <li>Crear y gestionar tu perfil profesional</li>
+                <li>Subir tu currículum y documentos</li>
+                <li>Aplicar a vacantes de empleo</li>
+                <li>Realizar tests de competencias (gratuitos)</li>
+                <li>Seguir el estado de tus postulaciones</li>
+                <li>Recibir invitaciones a entrevistas</li>
+              </ul>
+              <p className="text-sm text-slate-400 mt-4">
+                ¡Es totalmente gratis! Crea tu cuenta y comienza tu búsqueda de empleo hoy.
+              </p>
+            </div>
+            <button onClick={() => { setShowInfo(null); setTipo('candidato'); }} className="w-full mt-6 py-3 rounded-xl font-semibold text-white bg-primary-600 hover:bg-primary-500 transition-all">
+              Crear cuenta como candidato
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Información - Empresa */}
+      {showInfo === 'empresa' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setShowInfo(null)}>
+          <div className="glass rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowInfo(null)} className="absolute top-4 right-4 text-slate-400 hover:text-white">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+              <Building2 size={24} /> Información para Empresas
+            </h3>
+            <div className="space-y-4 text-slate-300">
+              <p>Como empresa, podrás:</p>
+              <ul className="list-disc list-inside space-y-2 pl-2">
+                <li>Publicar vacantes de empleo</li>
+                <li>Revisar perfiles de candidatos</li>
+                <li>Verificar resultados de tests</li>
+                <li>Programar entrevistas grupales</li>
+                <li>Administrar tu proceso de reclutamiento</li>
+                <li>Acceder a un pool de talento calificado</li>
+              </ul>
+              <p className="text-sm text-slate-400 mt-4">
+                Plan SaaS con funcionalidades avanzadas de reclutamiento. ¡Contacta a nuestro equipo para más información!
+              </p>
+            </div>
+            <button onClick={() => { setShowInfo(null); setTipo('empresa'); }} className="w-full mt-6 py-3 rounded-xl font-semibold text-white bg-accent-600 hover:bg-accent-500 transition-all">
+              Crear cuenta como empresa
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
