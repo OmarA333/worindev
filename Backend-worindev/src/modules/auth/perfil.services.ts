@@ -22,7 +22,6 @@ const usuario = await prisma.usuario.findUnique({
     where: { id: usuarioId },
     select: {
     id:        true,
-    nombre:    true,
     email:     true,
     createdAt: true,
     rol: true,
@@ -53,7 +52,7 @@ if (!usuario) throw new AppError('Usuario no encontrado', 404)
 if (usuario.candidato) {
     return {
     id:                  usuario.id,
-    nombre:              usuario.nombre,
+    nombre:              'Candidato', // No se guarda el nombre en Usuario
     email:               usuario.email,
     rol:                 usuario.rol ?? 'CANDIDATO',
     apellido:            usuario.candidato.apellido            ?? '',
@@ -74,7 +73,7 @@ if (usuario.candidato) {
 if (usuario.empresa) {
     return {
     id:                  usuario.id,
-    nombre:              usuario.nombre,
+    nombre:              usuario.empresa.nombre,
     email:               usuario.email,
     rol:                 usuario.rol ?? 'EMPRESA',
     apellido:            '',

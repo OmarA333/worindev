@@ -128,9 +128,9 @@ export const responderTest = async (testId: number, data: any, user: any) => {
   await prisma.candidato.update({ where: { id: candidato.id }, data: { matchScore: nuevoScore } })
 
   // Recalcular match de postulaciones y generar citaciones si alcanza 93%
-  const { recalcularMatchPostulaciones } = await import('../postulaciones/postulacion.services')
+  const { recalcularMatchPostulaciones } = await import('\.\./postulaciones/postulacion.services.ts') as any
   const citaciones = await recalcularMatchPostulaciones(candidato.id)
-  const citacionesGeneradas = citaciones.filter(c => c.citacionGenerada).length
+  const citacionesGeneradas = citaciones.filter((c: any) => c.citacionGenerada).length
 
   return { 
     message: 'Test completado', 
@@ -140,7 +140,7 @@ export const responderTest = async (testId: number, data: any, user: any) => {
     totalPreguntas,
     puntaje,
     citacionesGeneradas,
-    citaciones: citaciones.filter(c => c.citacionGenerada)
+    citaciones: citaciones.filter((c: any) => c.citacionGenerada)
   }
 }
 

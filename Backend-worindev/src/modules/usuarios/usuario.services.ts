@@ -46,11 +46,11 @@ export const actualizarPerfil = async (usuarioId: number, data: any) => {
 
   // Delegar al servicio correspondiente
   if (u.candidato) {
-    const { actualizarCandidato } = await import('../candidatos/candidato.services')
+    const { actualizarCandidato } = await import('\.\./candidatos/candidato.services.ts')
     return actualizarCandidato(u.candidato.id, data)
   }
   if (u.empresa) {
-    const { actualizarEmpresa } = await import('../empresas/empresa.services')
+    const { actualizarEmpresa } = await import('\.\./empresas/empresa.services.ts')
     return actualizarEmpresa(u.empresa.id, data)
   }
   throw new AppError('Perfil no encontrado', 404)
