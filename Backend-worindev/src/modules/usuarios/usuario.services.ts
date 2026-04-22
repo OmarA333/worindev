@@ -12,7 +12,7 @@ export const listarUsuarios = async (query: any) => {
     where: {
       ...(rol    ? { rol: rol as any }       : {}),
       ...(estado ? { estado: estado as any } : {}),
-      ...(buscar ? { email: { contains: buscar, mode: 'insensitive' } } : {}),
+      ...(buscar ? { email: { contains: buscar, mode: 'insensitive' as const } } : {}),
     },
     include,
     orderBy: { createdAt: 'desc' },

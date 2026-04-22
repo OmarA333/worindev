@@ -117,7 +117,7 @@ export const crearEntrevista = async (data: any) => {
     where: { entrevistaId: entrevista.id },
     include: { 
       entrevista: { include: { vacante: { include: { empresa: true } } } },
-      candidato: true
+      candidato: { include: { usuario: true } }
     }
   })
 

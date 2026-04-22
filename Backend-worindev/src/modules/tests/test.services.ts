@@ -8,7 +8,7 @@ export const listarTests = async () =>
 export const debugTests = async () => {
   const todos = await prisma.test.findMany({ include: { _count: { select: { preguntas: true } } } })
   const activos = await prisma.test.findMany({ where: { activo: true }, include: { _count: { select: { preguntas: true } } } })
-  return { total: todos.length, activos: activos.length, todos, activos }
+  return { total: todos.length, activos: activos.length, todosTests: todos, testsActivos: activos }
 }
 
 export const crearPregunta = async (testId: number, data: any) => {

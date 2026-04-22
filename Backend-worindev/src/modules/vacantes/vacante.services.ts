@@ -38,9 +38,9 @@ export const listarVacantes = async (query: any, soloActivas: boolean) => {
   const skip = (Number(page) - 1) * Number(limit)
 
   const where = {
-    ...(soloActivas ? { estado: 'ACTIVA' } : {}),
-    ...(buscar    ? { OR: [{ titulo: { contains: buscar, mode: 'insensitive' } }, { descripcion: { contains: buscar, mode: 'insensitive' } }] } : {}),
-    ...(ciudad    ? { ciudad: { contains: ciudad, mode: 'insensitive' } } : {}),
+    ...(soloActivas ? { estado: 'ACTIVA' as const } : {}),
+    ...(buscar    ? { OR: [{ titulo: { contains: buscar, mode: 'insensitive' as const } }, { descripcion: { contains: buscar, mode: 'insensitive' as const } }] } : {}),
+    ...(ciudad    ? { ciudad: { contains: ciudad, mode: 'insensitive' as const } } : {}),
     ...(modalidad ? { modalidad: modalidad as any } : {}),
     ...(empresaId ? { empresaId: Number(empresaId) } : {}),
     ...(habilidad ? { habilidades: { has: habilidad } } : {}),

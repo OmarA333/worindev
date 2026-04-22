@@ -25,23 +25,23 @@ const usuario = await prisma.usuario.findUnique({
     nombre:    true,
     email:     true,
     createdAt: true,
-    rol: {
-    select: { nombre: true }
-    },
-    cliente: {
+    rol: true,
+    candidato: {
     select: {
     id:                  true,
     apellido:            true,
-    tipoDocumento:       true,
-    numeroDocumento:     true,
-    fechaNacimiento:     true,
-    telefonoPrincipal:   true,
-    telefonoAlternativo: true,
+    telefono:            true,
     ciudad:              true,
-    barrio:              true,
-    direccion:           true,
-    zonaServicio:        true,
     foto:                true,
+        }
+    },
+    empresa: {
+    select: {
+    id:                  true,
+    nombre:              true,
+    rut:                 true,
+    logoUrl:             true,
+    ciudad:              true,
         }
     }
     }
@@ -49,26 +49,50 @@ const usuario = await prisma.usuario.findUnique({
 
 if (!usuario) throw new AppError('Usuario no encontrado', 404)
 
-return {
+// Determinar si es candidato o empresa
+if (usuario.candidato) {
+    return {
     id:                  usuario.id,
     nombre:              usuario.nombre,
     email:               usuario.email,
-    rol:                 usuario.rol?.nombre ?? 'CLIENTE',
-    apellido:            usuario.cliente?.apellido            ?? '',
-    tipoDocumento:       usuario.cliente?.tipoDocumento       ?? 'CC',
-    numeroDocumento:     usuario.cliente?.numeroDocumento     ?? '',
-    fechaNacimiento:     usuario.cliente?.fechaNacimiento
-    ? usuario.cliente.fechaNacimiento.toISOString().split('T')[0]
-    : '',
-    telefonoPrincipal:   usuario.cliente?.telefonoPrincipal   ?? '',
-    telefonoAlternativo: usuario.cliente?.telefonoAlternativo ?? '',
-    ciudad:              usuario.cliente?.ciudad              ?? '',
-    barrio:              usuario.cliente?.barrio              ?? '',
-    direccion:           usuario.cliente?.direccion           ?? '',
-    zonaServicio:        usuario.cliente?.zonaServicio        ?? 'URBANA',
-    foto:                usuario.cliente?.foto                ?? null,
-    clienteId:           usuario.cliente?.id                  ?? null,
+    rol:                 usuario.rol ?? 'CANDIDATO',
+    apellido:            usuario.candidato.apellido            ?? '',
+    tipoDocumento:       'CC',
+    numeroDocumento:     '',
+    fechaNacimiento:     '',
+    telefonoPrincipal:   usuario.candidato.telefono           ?? '',
+    telefonoAlternativo: '',
+    ciudad:              usuario.candidato.ciudad              ?? '',
+    barrio:              '',
+    direccion:           '',
+    zonaServicio:        'URBANA',
+    foto:                usuario.candidato.foto                ?? null,
+    clienteId:           usuario.candidato.id                  ?? null,
+    }
 }
+
+if (usuario.empresa) {
+    return {
+    id:                  usuario.id,
+    nombre:              usuario.nombre,
+    email:               usuario.email,
+    rol:                 usuario.rol ?? 'EMPRESA',
+    apellido:            '',
+    tipoDocumento:       usuario.empresa.rut ?? '',
+    numeroDocumento:     usuario.empresa.rut ?? '',
+    fechaNacimiento:     '',
+    telefonoPrincipal:   '',
+    telefonoAlternativo: '',
+    ciudad:              usuario.empresa.ciudad              ?? '',
+    barrio:              '',
+    direccion:           '',
+    zonaServicio:        'URBANA',
+    foto:                usuario.empresa.logoUrl             ?? null,
+    clienteId:           usuario.empresa.id                  ?? null,
+    }
+}
+
+throw new AppError('Perfil no encontrado', 404)
 }
 
 // ── actualizarPerfil ──────────────────────────────────────────────────────────
@@ -102,35 +126,44 @@ if (Object.keys(datosUsuario).length > 0) {
     })
 }
 
-  // ── 3. Verificar si existe registro en `cliente` ──────────────────────────
+  // ── 3. Verificar si existe registro en `candidato` o `empresa` ──────────────────────────
 const usuario = await prisma.usuario.findUnique({
     where:  { id: usuarioId },
-    select: { email: true, cliente: { select: { id: true } } },
+    select: { email: true, candidato: { select: { id: true } }, empresa: { select: { id: true } } },
 })
 
 if (!usuario) throw new AppError('Usuario no encontrado', 404)
 
-  // ── 4. Actualizar tabla `cliente` (sólo si existe el registro) ────────────
-if (usuario.cliente) {
-    const datosCliente: Record<string, unknown> = {}
+  // ── 4. Actualizar tabla `candidato` o `empresa` ────────────
+if (usuario.candidato) {
+    const datosCandidato: Record<string, unknown> = {}
 
-    if (apellido            !== undefined) datosCliente.apellido            = apellido.trim()
-    if (telefonoPrincipal   !== undefined) datosCliente.telefonoPrincipal   = telefonoPrincipal.trim()
-    if (telefonoAlternativo !== undefined) datosCliente.telefonoAlternativo = telefonoAlternativo?.trim() || null
-    if (ciudad              !== undefined) datosCliente.ciudad              = ciudad.trim()
-    if (barrio              !== undefined) datosCliente.barrio              = barrio.trim()
-    if (direccion           !== undefined) datosCliente.direccion           = direccion.trim()
-    if (zonaServicio        !== undefined) datosCliente.zonaServicio        = zonaServicio
-    if (foto                !== undefined) datosCliente.foto                = foto || null
+    if (apellido            !== undefined) datosCandidato.apellido            = apellido.trim()
+    if (telefonoPrincipal   !== undefined) datosCandidato.telefono           = telefonoPrincipal.trim()
+    if (ciudad              !== undefined) datosCandidato.ciudad              = ciudad.trim()
+    if (foto                !== undefined) datosCandidato.foto                = foto || null
 
     if (fechaNacimiento !== undefined && fechaNacimiento !== '') {
-    datosCliente.fechaNacimiento = new Date(fechaNacimiento)
+    datosCandidato.fechaNacimiento = new Date(fechaNacimiento)
     }
 
-    if (Object.keys(datosCliente).length > 0) {
-    await prisma.cliente.update({
-        where: { id: usuario.cliente.id },
-        data:  datosCliente,
+    if (Object.keys(datosCandidato).length > 0) {
+    await prisma.candidato.update({
+        where: { id: usuario.candidato.id },
+        data:  datosCandidato,
+    })
+    }
+} else if (usuario.empresa) {
+    const datosEmpresa: Record<string, unknown> = {}
+
+    if (nombre              !== undefined) datosEmpresa.nombre              = nombre.trim()
+    if (ciudad              !== undefined) datosEmpresa.ciudad              = ciudad.trim()
+    if (foto                !== undefined) datosEmpresa.logoUrl             = foto || null
+
+    if (Object.keys(datosEmpresa).length > 0) {
+    await prisma.empresa.update({
+        where: { id: usuario.empresa.id },
+        data:  datosEmpresa,
     })
     }
 }

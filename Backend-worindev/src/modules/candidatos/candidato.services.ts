@@ -12,13 +12,13 @@ export const listarCandidatos = async (query: any) => {
   const where = {
     ...(buscar ? {
       OR: [
-        { nombre:   { contains: buscar, mode: 'insensitive' } },
-        { apellido: { contains: buscar, mode: 'insensitive' } },
-        { usuario:  { email: { contains: buscar, mode: 'insensitive' } } },
+        { nombre:   { contains: buscar, mode: 'insensitive' as const } },
+        { apellido: { contains: buscar, mode: 'insensitive' as const } },
+        { usuario:  { email: { contains: buscar, mode: 'insensitive' as const } } },
       ]
     } : {}),
-    ...(ciudad ? { ciudad: { contains: ciudad, mode: 'insensitive' } } : {}),
-    ...(habilidad ? { habilidades: { some: { habilidad: { contains: habilidad, mode: 'insensitive' } } } } : {}),
+    ...(ciudad ? { ciudad: { contains: ciudad, mode: 'insensitive' as const } } : {}),
+    ...(habilidad ? { habilidades: { some: { habilidad: { contains: habilidad, mode: 'insensitive' as const } } } } : {}),
     ...(minScore ? { matchScore: { gte: Number(minScore) } } : {}),
   }
 
