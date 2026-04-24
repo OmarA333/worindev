@@ -5,7 +5,7 @@
 
     "moduleResolution": "node16",
     "module": "Node16",
-    "target": "ES2022",
+    "target": "es2019",
 
     "sourceMap": true,
     "strict": true,
@@ -20,5 +20,5 @@
     "allowImportingTsExtensions": true
   },
   "include": ["src"],
-  "exclude": ["prisma"]
+  "exclude": ["node_modules","prisma"]
 }
